@@ -182,48 +182,58 @@ import os
 #os.system("$HOME/.ubcore/ubiquitous_bash/ubcore.sh _bash -i ")
 #currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
 #print(['ubiquitous_bash.sh', '_bash'] + currentArguments)
-def _bash(currentArguments = ['-i'], currentPrint = False, current_ubiquitous_bash = "ubiquitous_bash.sh"):
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists(os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh"):
-			current_ubiquitous_bash = (os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh")
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"):
-			current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists("/cygdrive/c/core/infrastructure/lean/lean.sh"):
-			current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/lean/lean.sh"
-	currentArguments = ['-i'] if currentArguments == '-i' else currentArguments
-	if isinstance(currentArguments, str):
-		# WARNING: Discouraged.
-		if not currentArguments == '-i':
-			currentProc = subprocess.Popen(current_ubiquitous_bash + " _bash " + currentArguments, stdout=subprocess.PIPE, universal_newlines=True, shell=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-			currentOut = currentOut.rstrip('\n')
-			if currentPrint == True:
-				print(currentOut)
-				return (currentOut), currentProc.returncode
-		else:
-			currentProc = subprocess.Popen(current_ubiquitous_bash + " _bash " + currentArguments, universal_newlines=True, shell=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-		return (currentOut), currentProc.returncode
-	else:
-		if not currentArguments == ['-i']:
-			currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
-			currentProc = subprocess.Popen([current_ubiquitous_bash, '_bash'] + currentArguments, stdout=subprocess.PIPE, universal_newlines=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-			currentOut = currentOut.rstrip('\n')
-			if currentPrint == True:
-				print(currentOut)
-				return (currentOut), currentProc.returncode
-		else:
-			currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
-			currentProc = subprocess.Popen([current_ubiquitous_bash, '_bash'] + currentArguments, universal_newlines=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-		return (currentOut), currentProc.returncode
+# ATTENTION: WARNING: Enjoy this python code. The '_bash' and '_bin' function are quite possibly, even probably, and for actual reasons for every line of code being annoying, the worst python code that will ever be written by people. In plainer language, only mess with parts of this code for which you have stopped to fully understand exactly why every negation, if/else, return, print, etc, is in the exact order that it is.
+def _bash(currentArguments = ['-i'], currentPrint = False, current_ubiquitous_bash = "ubiquitous_bash.sh", interactive=True):
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ.get("scriptCall_bash_msw", "").replace('\\', '/')):
+            current_ubiquitous_bash = os.environ.get("scriptCall_bash_msw", "").replace('\\', '/')
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ.get("scriptAbsoluteLocation", "")):
+            current_ubiquitous_bash = os.environ.get("scriptAbsoluteLocation", "")
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh"):
+            current_ubiquitous_bash = (os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh")
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"):
+            current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/lean.sh"):
+            current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/lean.sh"
+    currentArguments = ['-i'] if currentArguments == '-i' else currentArguments
+    if isinstance(currentArguments, str):
+    # WARNING: Discouraged.
+        if not ( ( currentArguments == '-i' ) or ( currentArguments == '' ) or ( interactive == True ) ):
+            # ATTENTION: WARNING: Use of 'stdout=subprocess.PIPE' is NOT compatible with interactive shell!
+            currentProc = subprocess.Popen(current_ubiquitous_bash + " _bash " + currentArguments, stdout=subprocess.PIPE, universal_newlines=True, shell=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+            currentOut = currentOut.rstrip('\n')
+            if currentPrint == True:
+                print(currentOut)
+                return (currentOut), currentProc.returncode
+        else:
+            currentProc = subprocess.Popen(current_ubiquitous_bash + " _bash " + currentArguments, universal_newlines=True, shell=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+        return (currentOut), currentProc.returncode
+    else:
+        if not ( ( currentArguments == ['-i'] ) or ( currentArguments == [''] ) or ( interactive == True ) ):
+            currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
+            # ATTENTION: WARNING: Use of 'stdout=subprocess.PIPE' is NOT compatible with interactive shell!
+            currentProc = subprocess.Popen([current_ubiquitous_bash, '_bash'] + currentArguments, stdout=subprocess.PIPE, universal_newlines=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+            currentOut = currentOut.rstrip('\n')
+            if currentPrint == True:
+                print(currentOut)
+                return (currentOut), currentProc.returncode
+        else:
+            if ( currentArguments == [''] ): currentArguments = ['-i']
+            currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
+            currentProc = subprocess.Popen([current_ubiquitous_bash, '_bash'] + currentArguments, universal_newlines=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+        return (currentOut), currentProc.returncode
 
 
 
@@ -247,48 +257,61 @@ import os
 #_bin('_bash')
 #print( _bin('_false', False)[1] )
 #_bin("_getScriptAbsoluteLocation", True, os.path.expanduser("~/core/infrastructure/ubiquitous_bash/ubiquitous_bash.sh"))
-def _bin(currentArguments = [''], currentPrint = False, current_ubiquitous_bash = "ubiquitous_bash.sh"):
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists(os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh"):
-			current_ubiquitous_bash = (os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh")
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"):
-			current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists("/cygdrive/c/core/infrastructure/lean/lean.sh"):
-			current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/lean/lean.sh"
-	currentArguments = [''] if currentArguments == '' else currentArguments
-	if isinstance(currentArguments, str):
-		# WARNING: Discouraged.
-		if not ( ( currentArguments == '/bin/bash -i' ) or ( currentArguments == '/bin/bash' ) ):
-			currentProc = subprocess.Popen(current_ubiquitous_bash + " _bin " + currentArguments, stdout=subprocess.PIPE, universal_newlines=True, shell=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-			currentOut = currentOut.rstrip('\n')
-			if currentPrint == True:
-				print(currentOut)
-				return (currentOut), currentProc.returncode
-		else:
-			currentProc = subprocess.Popen(current_ubiquitous_bash + " _bin " + currentArguments, universal_newlines=True, shell=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-		return (currentOut), currentProc.returncode
-	else:
-		if not (  ( currentArguments == ['/bin/bash', '-i'] ) or ( currentArguments == ['/bin/bash'] ) or ( currentArguments == ['_qalculate', ''] ) or ( currentArguments == ['_qalculate'] ) or ( currentArguments == ['_octave', ''] ) or ( currentArguments == ['_octave'] )  ):
-			currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
-			currentProc = subprocess.Popen([current_ubiquitous_bash, '_bin'] + currentArguments, stdout=subprocess.PIPE, universal_newlines=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-			currentOut = currentOut.rstrip('\n')
-			if currentPrint == True:
-				print(currentOut)
-				return (currentOut), currentProc.returncode
-		else:
-			currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
-			currentProc = subprocess.Popen([current_ubiquitous_bash, '_bin'] + currentArguments, universal_newlines=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-		return (currentOut), currentProc.returncode
+# ATTENTION: WARNING: Enjoy this python code. The '_bash' and '_bin' function are quite possibly, even probably, and for actual reasons for every line of code being annoying, the worst python code that will ever be written by people. In plainer language, only mess with parts of this code for which you have stopped to fully understand exactly why every negation, if/else, return, print, etc, is in the exact order that it is.
+def _bin(currentArguments = [''], currentPrint = False, current_ubiquitous_bash = "ubiquitous_bash.sh", interactive=False):
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ.get("scriptCall_bash_msw", "").replace('\\', '/')):
+            current_ubiquitous_bash = os.environ.get("scriptCall_bash_msw", "").replace('\\', '/')
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ.get("scriptAbsoluteLocation", "")):
+            current_ubiquitous_bash = os.environ.get("scriptAbsoluteLocation", "")
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh"):
+            current_ubiquitous_bash = (os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh")
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"):
+            current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/lean.sh"):
+            current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/lean.sh"
+    # ATTENTION: Comment out next python line of code to test this code with an empty string.
+    #./lean.py "_bin('', currentPrint=True)"
+    currentArguments = [''] if currentArguments == '' else currentArguments
+    if isinstance(currentArguments, str):
+        # WARNING: Discouraged.
+        if not ( ( ( currentArguments == '/bin/bash -i' ) or ( currentArguments == '/bin/bash' ) or ( currentArguments == '_bash' ) or ( currentArguments == '' ) ) or ( interactive == True ) ) :
+            # ATTENTION: WARNING: Use of 'stdout=subprocess.PIPE' is NOT compatible with interactive shell!
+            currentProc = subprocess.Popen(current_ubiquitous_bash + " _bin " + currentArguments, stdout=subprocess.PIPE, universal_newlines=True, shell=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+            currentOut = currentOut.rstrip('\n')
+            if currentPrint == True:
+                print(currentOut)
+                return (currentOut), currentProc.returncode
+        else:
+            if ( currentArguments == '' ): currentArguments = '_bash'
+            currentProc = subprocess.Popen(current_ubiquitous_bash + " _bin " + currentArguments, universal_newlines=True, shell=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+        return (currentOut), currentProc.returncode
+    else:
+        if not ( ( ( currentArguments == ['/bin/bash', '-i'] ) or ( currentArguments == ['/bin/bash'] ) or ( currentArguments == ['_bash'] ) or ( currentArguments == ['_bash', '-i'] ) or ( currentArguments == ['_qalculate', ''] ) or ( currentArguments == ['_qalculate'] ) or ( currentArguments == ['_octave', ''] ) or ( currentArguments == ['_octave'] ) or ( currentArguments == [''] ) ) or ( interactive == True ) ):
+            currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
+            # ATTENTION: WARNING: Use of 'stdout=subprocess.PIPE' is NOT compatible with interactive shell!
+            currentProc = subprocess.Popen([current_ubiquitous_bash, '_bin'] + currentArguments, stdout=subprocess.PIPE, universal_newlines=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+            currentOut = currentOut.rstrip('\n')
+            if currentPrint == True:
+                print(currentOut)
+                return (currentOut), currentProc.returncode
+        else:
+            if ( currentArguments == [''] ): currentArguments = ['_bash']
+            currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
+            currentProc = subprocess.Popen([current_ubiquitous_bash, '_bin'] + currentArguments, universal_newlines=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+        return (currentOut), currentProc.returncode
 
 # ATTENTION: Only intended for indirect calls.
 # https://stackoverflow.com/questions/5067604/determine-function-name-from-within-that-function-without-using-traceback
@@ -364,15 +387,52 @@ def _octave(currentString = [], currentArguments = [], currentPrint = False, cur
 
 
 
-import readline # optional, will allow Up/Down/History in the console
+if sys.platform == 'win32':
+    try:
+        import pyreadline3 as readline
+    except ImportError:
+        readline = None
+else:
+    try:
+        import readline # optional, will allow Up/Down/History in the console
+    except ImportError:
+        readline = None
 import code
+
+# ATTRIBUTION-AI: ChatGPT o3  2025-04-19
+def _enable_readline():
+    """
+    Make sure arrow keys, history and TAB completion work in the
+    interpreter that we embed with code.InteractiveConsole.
+    """
+    try:
+        import readline, rlcompleter, atexit, os
+        # basic key bindings
+        readline.parse_and_bind('tab: complete')
+        # persistent history file
+        histfile = os.path.expanduser('~/.pyhistory')
+        if os.path.exists(histfile):
+            readline.read_history_file(histfile)
+        atexit.register(readline.write_history_file, histfile)
+    except ImportError:
+        # readline (or pyreadline on Windows) is not available
+        pass
+
+
+
+
 #_python()
 # https://stackoverflow.com/questions/5597836/embed-create-an-interactive-python-shell-inside-a-python-program
 def _python():
-	variables = globals().copy()
-	variables.update(locals())
-	shell = code.InteractiveConsole(variables)
-	shell.interact()
+    _enable_readline()
+    variables = globals().copy()
+    variables.update(locals())
+    shell = code.InteractiveConsole(variables)
+    # ATTRIBUTION-AI: ChatGPT 4.1  2025-04-19
+    if os.name == 'nt':  # True on Windows
+        print(" Press Ctrl+D twice (or Ctrl+Z then Enter) to exit this Python shell.")
+    # ATTRIBUTION: NOT AI !
+    shell.interact()
 
 
 
@@ -381,33 +441,117 @@ import os
 import socket
 import string
 import re
-#if sys.hexversion < 0x03060000:
-#	exit(1)
-# https://www.codementor.io/@arpitbhayani/personalize-your-python-prompt-13ts4kw6za
-# https://stackoverflow.com/questions/4271740/how-can-i-use-python-to-get-the-system-hostname
-# https://bugs.python.org/issue20359
-#os.environ['PWD']
-#os.path.expanduser(os.getcwd())
-#\033[0;35;47mpython-%d\033[0m
-#return "\033[92mIn [%d]:\033[0m " % (self.line)
-#return ">>> "
-#return "\033[1;94m|\033[91m#:\033[1;93m%s\033[1;92m@%s\033[1;94m)-%s(\033[1;95m\033[0;35;47mpython-%s\033[0m\033[1;94m)\033[1;96m|\n\033[1;94m|\033[1;97m[%s]\n\033[1;94m|\033[1;96m%d\033[1;94m) \033[1;96m>\033[0m " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
-#return "\033[1;94m|\033[91m#:\033[1;93m%s\033[1;92m@%s\033[1;94m)-%s(\033[1;95m\033[0;35;47mpython-%s\033[0m\033[1;94m)\033[1;96m|\n\033[1;94m|\033[1;97m[%s]\n\033[1;94m|%d\033[1;94m) \033[1;96m>\033[0m " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
-#os.environ['USER']
-#os.getenv('USER','root')
-class ubPythonPS1(object):
-	def __init__(self):
-		self.line = 0
 
-	def __str__(self):
-		self.line += 1
-		if self.line == 1:
-			return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;94m\x02|\x01\033[1;97m\x02[%s]\n\x01\033[1;94m\x02|\x01\033[1;96m\x02%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
-		else:
-			return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;94m\x02|\x01\033[1;97m\x02[%s]\n\x01\033[1;94m\x02|%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+# ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-18  (partially)
+# Determine if running on Windows
+is_windows = os.name == 'nt'
 
-sys.ps1 = ubPythonPS1()
-sys.ps2 = "\x01\033[0;96m\x02|...\x01\033[0m\x02 "
+# ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-18  (partially)
+# Attempt to import colorama if on Windows
+use_colorama = False
+if is_windows:
+    try:
+        from colorama import init, Fore, Back, Style
+        init(autoreset=True)
+        use_colorama = True
+    except ImportError:
+        pass  # Silently proceed without colorama if import fails
+
+# Color definitions (use ANSI if not on Windows or colorama is not used)
+if use_colorama:
+    # ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-18  (partially)  ( also the preceeding line  if use_colorama:  )
+    class ubPythonPS1(object):
+        def __init__(self):
+            self.line = 0
+
+        def __str__(self):
+            self.line += 1
+            user = os.getenv('USER', 'root')
+            hostname = socket.gethostname()
+            cloud_net_name = os.environ.get('prompt_cloudNetName', '')
+            #py_version = f"v{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+            ## ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-19
+            #py_version = f"v{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}" if not os.getenv('VIRTUAL_ENV_PROMPT') else os.getenv('VIRTUAL_ENV_PROMPT', '')
+            # ATTRIBUTION-AI: ChatGPT o3  2025-04-19
+            py_version = os.getenv("VIRTUAL_ENV_PROMPT") or f"Python-v{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+            cwd = os.path.expanduser(os.getcwd())
+
+            home_dir = os.environ.get('HOME', os.environ.get('USERPROFILE', ''))
+            if home_dir:
+                cwd = re.sub(f'^{re.escape(home_dir)}', '~', cwd)
+
+            # Color definitions (matched to ANSI colors)
+            blue = Fore.BLUE
+            red = Fore.RED
+            green = Fore.GREEN  # Hostname color
+            yellow = Fore.YELLOW
+            magenta = Fore.MAGENTA  # Python version color
+            cyan = Fore.CYAN
+            white = Fore.WHITE
+            reset = Style.RESET_ALL
+            bg_white = Back.WHITE
+
+            if self.line == 1:
+                prompt = (
+                    f"{blue}|{red}#{red}:{yellow}{user}{green}@{green}{hostname}{blue})-{cloud_net_name}({magenta}{bg_white}{py_version}{reset}{blue}){cyan}|\n"
+                    #f"{blue}|{white}[{cwd}]\n"
+                    f"{white}{cwd}\n"
+                    f"{blue}|{cyan}{self.line}{blue}) {cyan}> {reset}"
+                )
+            else:
+                prompt = (
+                    f"{blue}|{red}#{red}:{yellow}{user}{green}@{green}{hostname}{blue})-{cloud_net_name}({magenta}{bg_white}{py_version}{reset}{blue}){cyan}|\n"
+                    #f"{blue}|{white}[{cwd}]\n"
+                    f"{white}{cwd}\n"
+                    f"{blue}|{blue}{self.line}{blue}) {cyan}> {reset}"
+                )
+            return prompt
+
+    sys.ps1 = ubPythonPS1()
+    sys.ps2 = f"{Fore.CYAN}|...{Style.RESET_ALL} "
+else:
+    # ATTRIBUTION: NOT AI !
+    #if sys.hexversion < 0x03060000:
+    #	exit(1)
+    # https://www.codementor.io/@arpitbhayani/personalize-your-python-prompt-13ts4kw6za
+    # https://stackoverflow.com/questions/4271740/how-can-i-use-python-to-get-the-system-hostname
+    # https://bugs.python.org/issue20359
+    #os.environ['PWD']
+    #os.path.expanduser(os.getcwd())
+    #\033[0;35;47mpython-%d\033[0m
+    #return "\033[92mIn [%d]:\033[0m " % (self.line)
+    #return ">>> "
+    #return "\033[1;94m|\033[91m#:\033[1;93m%s\033[1;92m@%s\033[1;94m)-%s(\033[1;95m\033[0;35;47mpython-%s\033[0m\033[1;94m)\033[1;96m|\n\033[1;94m|\033[1;97m[%s]\n\033[1;94m|\033[1;96m%d\033[1;94m) \033[1;96m>\033[0m " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+    #return "\033[1;94m|\033[91m#:\033[1;93m%s\033[1;92m@%s\033[1;94m)-%s(\033[1;95m\033[0;35;47mpython-%s\033[0m\033[1;94m)\033[1;96m|\n\033[1;94m|\033[1;97m[%s]\n\033[1;94m|%d\033[1;94m) \033[1;96m>\033[0m " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+    #os.environ['USER']
+    #os.getenv('USER','root')
+    class ubPythonPS1(object):
+        def __init__(self):
+            self.line = 0
+
+        def __str__(self):
+            self.line += 1
+            if self.line == 1:
+                #return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;94m\x02|\x01\033[1;97m\x02[%s]\n\x01\033[1;94m\x02|\x01\033[1;96m\x02%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+                #return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;97m\x02%s\n\x01\033[1;94m\x02|\x01\033[1;96m\x02%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+                # ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-19
+                return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;97m\x02%s\n\x01\033[1;94m\x02|\x01\033[1;96m\x02%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion) if 'VIRTUAL_ENV_PROMPT' not in os.environ or not os.environ['VIRTUAL_ENV_PROMPT'] else os.environ['VIRTUAL_ENV_PROMPT'], re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+            else:
+                #return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;94m\x02|\x01\033[1;97m\x02[%s]\n\x01\033[1;94m\x02|%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+                #return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;97m\x02%s\n\x01\033[1;94m\x02|%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+                # ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-19
+                return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;97m\x02%s\n\x01\033[1;94m\x02|%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion) if 'VIRTUAL_ENV_PROMPT' not in os.environ or not os.environ['VIRTUAL_ENV_PROMPT'] else os.environ['VIRTUAL_ENV_PROMPT'], re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+
+    sys.ps1 = ubPythonPS1()
+    sys.ps2 = "\x01\033[0;96m\x02|...\x01\033[0m\x02 "
+
+
+# ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-18 (only the next line  if is_windows and not use_colorama:  )
+if is_windows and not use_colorama:
+    # ATTRIBUTION: NOT AI !
+    # https://www.codementor.io/@arpitbhayani/personalize-your-python-prompt-13ts4kw6za
+    sys.ps1 = '>>> '
+    sys.ps2 = '... '
 
 #_python()
 

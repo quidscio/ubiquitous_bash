@@ -1,5 +1,9 @@
 
-#export distill_projectDir=$(_getAbsoluteLocation ./_local/experiment) ; export distill_distillDir=$(_getAbsoluteLocation ./_local/experiment_distill) ; cp -f ./os/override/override_cygwin.sh ./_local/experiment/override_cygwin.sh ; ./ubiquitous_bash.sh _semanticAssist ./_local/experiment
+#export distill_projectDir=$(_getAbsoluteLocation ./_local/experiment) ; export distill_distillDir=$(_getAbsoluteLocation ./_local/experiment_distill) ; mkdir -p ./_local/experiment ; cp -f ./generic/findInfrastructure.sh ./_local/experiment/ ; ./ubiquitous_bash.sh _semanticAssist ./_local/experiment
+
+#export distill_projectDir=$(_getAbsoluteLocation ./_local/experiment) ; export distill_distillDir=$(_getAbsoluteLocation ./_local/experiment_distill) ; mkdir -p ./_local/experiment ; cp -f ./os/override/override_cygwin.sh ./_local/experiment/ ; ./ubiquitous_bash.sh _semanticAssist ./_local/experiment
+
+#export distill_projectDir=$(_getAbsoluteLocation ./_local/experiment) ; export distill_distillDir=$(_getAbsoluteLocation ./_local/experiment_distill) ; mkdir -p ./_local/experiment ; cp -f ./metaengine/typical/typical_metaengine_buffer.sh ./_local/experiment/ ; ./ubiquitous_bash.sh _semanticAssist ./_local/experiment
 
 _semanticAssist_bash_procedure() {
     [[ "$1" == "" ]] && return 0
@@ -51,7 +55,13 @@ _semanticAssist_bash_procedure() {
     local currentLineEnd_next
     local currentGibberish
     local currentIteration_gibberish
-    while ( [[ "$currentIteration" == "-1" ]] ) || ( [[ ${current_dataset_functionBounds[$currentIteration]} -lt "$current_dataset_totalLines" ]] && [[ "$currentIteration" -lt 999 ]] && [[ ${current_dataset_functionBounds[$currentIteration]} != "" ]] )
+    if [[ "${current_dataset_functionBounds[0]}" == "1" ]] # Skip iterating over 'currentLineBegin=1' case if the next iteration will also begin at 'currentLineBegin=1'.
+    then
+        let currentIteration++
+        let currentIterationNext++
+        let currentIterationNextNext++
+    fi
+    while ( [[ "$currentIteration" == "-1" ]] ) || ( [[ ${current_dataset_functionBounds[$currentIteration]} -lt "$current_dataset_totalLines" ]] && [[ "$currentIteration" -lt 30000 ]] && [[ ${current_dataset_functionBounds[$currentIteration]} != "" ]] ) # ( [[ "${current_dataset_functionBounds[0]}" == "1" ]] && [[ "$currentIteration" == 0 ]] )
     do
         currentLineBegin=$(( ${current_dataset_functionBounds[$currentIteration]} ))
         [[ "$currentIteration" -lt 0 ]] && currentLineBegin=1
@@ -144,6 +154,7 @@ _semanticAssist_bash_procedure() {
                 #( _messageError 'FAIL: gibberish: '"$1": "$currentLineBegin" >&2 ) > /dev/null
                 #return 1
                 #exit 1
+                _messagePlain_bad 'bad: gibberish: '"$1"': '"$currentLineBegin" >&2
                 rm -f "$safeTmp"/"$inputName"-"$currentFileID".keywords.txt > /dev/null 2>&1
                 echo > "$safeTmp"/"$inputName"-"$currentFileID".keywords.txt
                 currentGibberish="valid"

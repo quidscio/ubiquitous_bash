@@ -15,19 +15,28 @@ _gitBest_detect_github_procedure() {
 		fi
 		
 		local currentSSHoutput
-		if ( [[ -e "$HOME"/.ssh/id_rsa ]] || [[ -e "$HOME"/.ssh/config ]] || ( [[ ! -e "$HOME"/.ssh/id_ed25519_sk ]] && [[ ! -e "$HOME"/.ssh/ecdsa-sk ]] ) ) && currentSSHoutput=$(ssh -o StrictHostKeyChecking=no -o Compression=yes -o ConnectionAttempts=3 -o ServerAliveInterval=6 -o ServerAliveCountMax=9 -o ConnectTimeout="$netTimeout" -o PubkeyAuthentication=yes -o PasswordAuthentication=no git@github.com 2>&1 ; true) && _safeEcho_newline "$currentSSHoutput" | grep 'successfully authenticated'
+		# CAUTION: Disabling this presumes "$HOME"/.ssh/config for GitHub (possibly through 'CoreAutoSSH') is now not necessary to support by default.
+		#  ATTENTION: Good assumption. GH_TOKEN/INPUT_GITHUB_TOKEN is now used by _gitBest within 'compendium' functions, etc, usually much safer and more convenient.
+		#   Strongly Discouraged: Override with ops.sh if necessary.
+		# || [[ -e "$HOME"/.ssh/config ]]
+		if ( [[ -e "$HOME"/.ssh/id_rsa ]] || ( [[ ! -e "$HOME"/.ssh/id_ed25519_sk ]] && [[ ! -e "$HOME"/.ssh/ecdsa-sk ]] ) ) && currentSSHoutput=$(ssh -o StrictHostKeyChecking=no -o Compression=yes -o ConnectionAttempts=3 -o ServerAliveInterval=6 -o ServerAliveCountMax=9 -o ConnectTimeout="$netTimeout" -o PubkeyAuthentication=yes -o PasswordAuthentication=no git@github.com 2>&1 ; true) && _safeEcho_newline "$currentSSHoutput" | grep 'successfully authenticated'
 		then
 			export current_gitBest_source_GitHub="github_ssh"
 			return
 		fi
 		_safeEcho_newline "$currentSSHoutput"
 		
-		#if _checkPort github.com 443
-		if wget -qO- https://github.com > /dev/null
-		then
-			export current_gitBest_source_GitHub="github_https"
-			return
-		fi
+		# Exceptionally rare cases of 'github.com' accessed from within GitHub Actions runner (most surprisingly) not responding have apparently happened.
+		local currentIteration
+		for currentIteration in $(seq 1 2)
+		do
+			#if _checkPort github.com 443
+			if wget -qO- https://github.com > /dev/null
+			then
+				export current_gitBest_source_GitHub="github_https"
+				return
+			fi
+		done
 		
 		
 		[[ "$current_gitBest_source_GitHub" == "" ]] && export current_gitBest_source_GitHub="FAIL"
@@ -183,10 +192,54 @@ _gitBest_sequence() {
 	
 	_messagePlain_nominal 'init: git'
 	
+	local currentExitStatus
 	git "$@"
+	currentExitStatus="$?"
+
+
+	export HOME="$realHome"
+	if _if_cygwin
+	then
+		if [ "$1" = "clone" ]
+		then
+			_messagePlain_nominal 'init: git safe directory'
+
+			# ATTRIBUTION-AI: ChatGPT 4.5-preview  2025-04-12  (partially)
+			local currentDirectory
+			local currentURL
+			local currentArg=""
+			local currentArg_previous=""
+			for currentArg in "$@"
+			do
+				# Ignore parameters:
+				#  begins with "-" dash
+				#  preceeded by parameter taking an argument, but no argument or "="
+				if [[ "$currentArg" != -* ]] && [[ "$currentArg" != "clone" ]] && [[ "$currentArg_previous" != "--template" ]] && [[ "$currentArg_previous" != "-o" ]] && [[ "$currentArg_previous" != "-b" ]] && [[ "$currentArg_previous" != "-u" ]] && [[ "$currentArg_previous" != "--reference" ]] && [[ "$currentArg_previous" != "--separate-git-dir" ]] && [[ "$currentArg_previous" != "--depth" ]] && [[ "$currentArg_previous" != "--jobs" ]] && [[ "$currentArg_previous" != "--filter" ]]
+				then
+					currentURL="$currentArg"
+					echo "$currentURL"
+					#break
+
+					[[ -e "$currentArg" ]] && currentDirectory="$currentArg"
+				fi
+				currentArg_previous="$currentArg"
+			done
+		fi
+		
+		[[ "$currentDirectory" == "" ]] && [[ "$currentURL" != "" ]] && currentDirectory=$(basename --suffix=".git" "$currentURL")
+		
+		if [[ -e "$currentDirectory" ]]
+		then
+			_messagePlain_probe 'exists: '"$currentDirectory"
+			if type _write_configure_git_safe_directory_if_admin_owned > /dev/null 2>&1
+			then
+				currentDirectory=$(_getAbsoluteLocation "$currentDirectory")
+				_write_configure_git_safe_directory_if_admin_owned "$currentDirectory"
+			fi
+		fi
+	fi
 	
-	
-	_stop "$?"
+	_stop "$currentExitStatus"
 }
 
 _gitBest() {

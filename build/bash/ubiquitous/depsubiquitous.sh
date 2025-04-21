@@ -57,10 +57,13 @@ _init_deps() {
 	export enUb_msw=""
 	export enUb_fakehome=""
 	export enUb_abstractfs=""
+	export enUb_virt_python=""
 	export enUb_buildBash=""
 	export enUb_buildBashUbiquitous=""
 
 	export enUb_virt_translation_gui=""
+
+	export enUb_virt_dumbpath=""
 	
 	export enUb_command=""
 	export enUb_synergy=""
@@ -87,6 +90,7 @@ _init_deps() {
 	
 	export enUb_calculators=""
 
+	export enUb_ai_shortcuts=""
 	export enUb_ollama_shortcuts=""
 	export enUb_factory_shortcuts=""
 }
@@ -394,10 +398,19 @@ _deps_abstractfs() {
 	export enUb_abstractfs="true"
 }
 
+_deps_virtPython() {
+	_deps_python
+	export enUb_virt_python="true"
+}
+
 _deps_virt_translation_gui() {
 	_deps_virt_translation
 	
 	export enUb_virt_translation_gui="true"
+}
+
+_deps_dumbpath() {
+	export enUb_virt_dumbpath="true"
 }
 
 _deps_command() {
@@ -488,6 +501,7 @@ _deps_calculators() {
 _deps_ai_shortcuts() {
 	_deps_generic
 	
+	export enUb_ai_shortcuts="true"
 	export enUb_ollama_shortcuts="true"
 }
 

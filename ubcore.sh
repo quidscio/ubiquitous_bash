@@ -36,7 +36,7 @@ _ub_cksum_special_derivativeScripts_contents() {
 #export ub_setScriptChecksum_disable='true'
 ( [[ -e "$0".nck ]] || [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$1" == '--profile' ]] || [[ "$1" == '--script' ]] || [[ "$1" == '--call' ]] || [[ "$1" == '--return' ]] || [[ "$1" == '--devenv' ]] || [[ "$1" == '--shell' ]] || [[ "$1" == '--bypass' ]] || [[ "$1" == '--parent' ]] || [[ "$1" == '--embed' ]] || [[ "$1" == '--compressed' ]] || [[ "$0" == "/bin/bash" ]] || [[ "$0" == "-bash" ]] || [[ "$0" == "/usr/bin/bash" ]] || [[ "$0" == "bash" ]] ) && export ub_setScriptChecksum_disable='true'
 export ub_setScriptChecksum_header='2591634041'
-export ub_setScriptChecksum_contents='1242588808'
+export ub_setScriptChecksum_contents='2617772576'
 
 # CAUTION: Symlinks may cause problems. Disable this test for such cases if necessary.
 # WARNING: Performance may be crucial here.
@@ -747,8 +747,212 @@ then
 fi
 
 
+
 if _if_cygwin
 then
+	# ATTRIBUTION-AI: ChatGPT 4.5-preview  2025-04-11  with knowledge ubiquitous_bash, etc
+	# Prioritizes native git binaries if available. Mostly a disadvantage over the Cygwin/MSW git binaries, but adds more usable git-lfs , and works surprisingly well, apparently still defaulting to: Cygwin HOME '.gitconfig' , Cygwin '/usr/bin/ssh' , correctly understanding the overrides of '_gitBest' , etc.
+	#  Alternatives:
+	#   git-lfs compiled for Cygwin/MSW - requires installing 'go' compiler for Cygwin/MSW
+	#   git fetch commands - manual effort
+	#   wrapper script to detect git lfs error and retry with subsequent separate fetch - technically possible
+	#   avoid git-lfs - usually sufficient
+	_override_msw_git() {
+		local git_path="/cygdrive/c/Program Files/Git/cmd"
+		
+		# Optionally iterate through additional drive letters:
+		# for drive in c ; do
+		# for drive in c d e f g h i j k l m n o p q r s t u v w D E F G H I J K L M N O P Q R S T U V W ; do
+		#   local git_path="/cygdrive/${drive}/Program Files/Git/cmd"
+		#   if [ -d "${git_path}" ]; then
+		#     break
+		#   fi
+		# done
+		
+		[ -d "$git_path" ] || return 0  # Return quietly if the git_path is not a directory
+
+		# ATTENTION: To use with 'ops.sh' or similar if necessary, appropriate, and safe.
+		export PATH_pre_override_git="$PATH"
+		
+		local path_entry entry IFS=':'
+		local new_path=""
+		
+		for entry in $PATH ; do
+			# Skip adding if this entry matches git_path exactly
+			[ "$entry" = "$git_path" ] && continue
+			
+			# Append current entry to the new_path
+			if [ -z "$new_path" ]; then
+				new_path="$entry"
+			else
+				new_path="${new_path}:${entry}"
+			fi
+		done
+
+		# Finally, explicitly prepend the git path
+		export PATH="${git_path}:${new_path}"
+
+		#( _messagePlain_probe_var PATH >&2 ) > /dev/null
+		#( _messagePlain_probe_var PATH_pre_override_git >&2 ) > /dev/null
+
+		# CAUTION: DANGER: MSW native git binaries can perceive 'parent directories' outside the 'root' directory provided by Cygwin, equivalent to calling git binaries through remote (eg. SSH, etc) commands to a filesystem encapsulating a ChRoot !
+		#  This function limits that behavior, especially for 'ubiquitous_bash' projects with MSW installers shipping standalone 'ubcp' environments.
+		_override_msw_git_CEILING() {
+			# On the unusual occasion "$scriptLocal" is defined as something other than "$scriptAbsoluteFolder"/_local, the 'ubcp' directory is not expected to have been included as a standard subdirectory under any other definition of "$scriptLocal" . Since this information is only used to add redundant configuration (ie. directories are not created, etc), no issues should be possible.
+			#current_script_ubcp_msw=$(cygpath -w "$scriptLocal")
+			current_script_ubcp_msw=$(cygpath -w "$scriptAbsoluteFolder"/_local)
+			current_script_ubcp_msw_escaped="${current_script_ubcp_msw//\\/\\\\}"
+			current_script_ubcp_msw_slash="${current_script_ubcp_msw//\\/\/}"
+
+			# ONLY for the MSW git binaries override case (if "$git_path" is not valid, this function will already return before this)
+			export GIT_CEILING_DIRECTORIES="/home/root/.ubcore/ubiquitous_bash;/home/root/.ubcore;/home/root;/cygdrive;/cygdrive/d/a/ubiquitous_bash/ubiquitous_bash;/cygdrive/c/a/ubiquitous_bash/ubiquitous_bash;C:\core\infrastructure\ubcp\cygwin;C:\q\p\zCore\infrastructure\ubiquitous_bash\_local\ubcp\cygwin;C:\core\infrastructure\extendedInterface\_local\ubcp;C:\core\infrastructure\ubDistBuild\_local\ubcp"
+			
+			[[ "$scriptAbsoluteFolder" != "" ]] && export GIT_CEILING_DIRECTORIES="$GIT_CEILING_DIRECTORIES"';'"$current_script_ubcp_msw"
+		}
+		#export -f _override_msw_git_CEILING
+		_override_msw_git_CEILING
+	}
+	# CAUTION: Early in the script for a reason! Changing the PATH drastically later has been known to cause WSL 'bash' to override Cygwin 'bash' with very obviously unpredictable results.
+	#  ATTENTION: There would be a '_test' function in 'ubiquitous_bash' for this, but the state of 'wsl' which may not be installed with 'ubdist', etc, is not necessarily predictable enough for a simple PASS/FAIL .
+	#if [[ "$1" != "_setupUbiquitous" ]] && [[ "$ub_under_setupUbiquitous" != "true" ]]
+	#then
+		_override_msw_git
+		#_override_msw_git_CEILING
+	#fi
+
+	# ATTRIBUTION-AI: ChatGPT 4.5-preview  2025-04-11  with knowledge ubiquitous_bash, etc  (partially)
+	# ATTRIBUTION-AI: ChatGPT 4o  2025-04-12  web search  (partially)
+	# ATTRIBUTION-AI: ChatGPT o3-mini-high  2025-04-12
+	_write_configure_git_safe_directory_if_admin_owned_sequence() {
+		local functionEntryPWD="$PWD"
+
+		# DUBIOUS
+		local functionEntry_GIT_DIR="$GIT_DIR"
+		local functionEntry_GIT_WORK_TREE="$GIT_WORK_TREE"
+		local functionEntry_GIT_INDEX_FILE="$GIT_INDEX_FILE"
+		local functionEntry_GIT_OBJECT_DIRECTORY="$GIT_OBJECT_DIRECTORY"
+		#local functionEntry_GIT_ALTERNATE_OBJECT_DIRECTORIES="$GIT_ALTERNATE_OBJECT_DIRECTORIES"
+		local functionEntry_GIT_CONFIG="$GIT_CONFIG"
+		local functionEntry_GIT_CONFIG_GLOBAL="$GIT_CONFIG_GLOBAL"
+		local functionEntry_GIT_CONFIG_SYSTEM="$GIT_CONFIG_SYSTEM"
+		local functionEntry_GIT_CONFIG_NOSYSTEM="$GIT_CONFIG_NOSYSTEM"
+		#local functionEntry_GIT_AUTHOR_NAME="$GIT_AUTHOR_NAME"
+		#local functionEntry_GIT_AUTHOR_EMAIL="$GIT_AUTHOR_EMAIL"
+		#local functionEntry_GIT_AUTHOR_DATE="$GIT_AUTHOR_DATE"
+		#local functionEntry_GIT_COMMITTER_NAME="$GIT_COMMITTER_NAME"
+		#local functionEntry_GIT_COMMITTER_EMAIL="$GIT_COMMITTER_EMAIL"
+		#local functionEntry_GIT_COMMITTER_DATE="$GIT_COMMITTER_DATE"
+		#local functionEntry_GIT_EDITOR="$GIT_EDITOR"
+		#local functionEntry_GIT_PAGER="$GIT_PAGER"
+		local functionEntry_GIT_NAMESPACE="$GIT_NAMESPACE"
+		local functionEntry_GIT_CEILING_DIRECTORIES="$GIT_CEILING_DIRECTORIES"
+		local functionEntry_GIT_DISCOVERY_ACROSS_FILESYSTEM="$GIT_DISCOVERY_ACROSS_FILESYSTEM"
+		#local functionEntry_GIT_SSL_NO_VERIFY="$GIT_SSL_NO_VERIFY"
+		#local functionEntry_GIT_SSH="$GIT_SSH"
+		#local functionEntry_GIT_SSH_COMMAND="$GIT_SSH_COMMAND"
+
+		git config --global --add safe.directory "$1"
+		#if [[ $(type -p git) != '/usr/bin/git' ]]
+		#then
+			##git config --global --add safe.directory "$2"
+			git config --global --add safe.directory "$3"
+			git config --global --add safe.directory "$4"
+		#fi
+
+		cd "$functionEntryPWD"
+
+		# DUBIOUS
+		GIT_DIR="$functionEntry_GIT_DIR"
+		GIT_WORK_TREE="$functionEntry_GIT_WORK_TREE"
+		GIT_INDEX_FILE="$functionEntry_GIT_INDEX_FILE"
+		GIT_OBJECT_DIRECTORY="$functionEntry_GIT_OBJECT_DIRECTORY"
+		#GIT_ALTERNATE_OBJECT_DIRECTORIES="$functionEntry_GIT_ALTERNATE_OBJECT_DIRECTORIES"
+		GIT_CONFIG="$functionEntry_GIT_CONFIG"
+		GIT_CONFIG_GLOBAL="$functionEntry_GIT_CONFIG_GLOBAL"
+		GIT_CONFIG_SYSTEM="$functionEntry_GIT_CONFIG_SYSTEM"
+		GIT_CONFIG_NOSYSTEM="$functionEntry_GIT_CONFIG_NOSYSTEM"
+		#GIT_AUTHOR_NAME="$functionEntry_GIT_AUTHOR_NAME"
+		#GIT_AUTHOR_EMAIL="$functionEntry_GIT_AUTHOR_EMAIL"
+		#GIT_AUTHOR_DATE="$functionEntry_GIT_AUTHOR_DATE"
+		#GIT_COMMITTER_NAME="$functionEntry_GIT_COMMITTER_NAME"
+		#GIT_COMMITTER_EMAIL="$functionEntry_GIT_COMMITTER_EMAIL"
+		#GIT_COMMITTER_DATE="$functionEntry_GIT_COMMITTER_DATE"
+		#GIT_EDITOR="$functionEntry_GIT_EDITOR"
+		#GIT_PAGER="$functionEntry_GIT_PAGER"
+		GIT_NAMESPACE="$functionEntry_GIT_NAMESPACE"
+		GIT_CEILING_DIRECTORIES="$functionEntry_GIT_CEILING_DIRECTORIES"
+		GIT_DISCOVERY_ACROSS_FILESYSTEM="$functionEntry_GIT_DISCOVERY_ACROSS_FILESYSTEM"
+		#GIT_SSL_NO_VERIFY="$functionEntry_GIT_SSL_NO_VERIFY"
+		#GIT_SSH="$functionEntry_GIT_SSH"
+		#GIT_SSH_COMMAND="$functionEntry_GIT_SSH_COMMAND"
+
+		return 0
+	}
+
+	# ATTRIBUTION-AI: ChatGPT 4.5-preview  2025-04-11  with knowledge ubiquitous_bash, etc  (partially)
+	# CAUTION: NOT sufficient to call this function only during installation (as Administrator, which is what normally causes this issue). If the user subsequently installs native 'git for Windows', additional '.gitconfig' entries are needed, with the different MSWindows native style path format.
+	# Historically this was apparently at least mostly not necessary until prioritizing native git binaries (if available) instead of relying on Cygwin/MSW git binaries.
+	_write_configure_git_safe_directory_if_admin_owned() {
+		local current_path="$1"
+		local win_path win_path_escaped win_path_slash cygwin_path
+		win_path="$(cygpath -w "$current_path")"
+		#cygwin_path="$(cygpath -u "$current_path")"  # explicit Cygwin POSIX path
+		win_path_escaped="${win_path//\\/\\\\}"
+		win_path_slash="${win_path//\\/\/}"
+
+		# Single call to verify Administrators ownership explicitly (fast Windows API call)
+		local owner_line
+		owner_line="$(icacls "$win_path" 2>/dev/null)"
+		if [[ "$owner_line" != *"BUILTIN\\Administrators"* ]]; then
+			# Not Administrators-owned, no further action needed, immediate return
+			return 0
+		fi
+		# Read "$HOME"/.gitconfig just once (efficient builtin file reading)
+		local gitconfig_content
+		if [[ -e "$HOME"/.gitconfig ]]; then
+			gitconfig_content="$(< "$HOME"/.gitconfig)"
+
+			## Check 1: Exact Windows path (C:\...)
+			#if [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $win_path"* ]]; then
+				#return 0
+			#fi
+
+			## Check 2: Double-backslash-escaped Windows path (C:\\...)
+			#win_path_escaped="${win_path//\\/\\\\}"
+			#if [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $win_path_escaped"* ]]; then
+				#return 0
+			#fi
+
+			## Check 3: Normal-slash Windows path (C:/...)
+			#win_path_slash="${win_path//\\/\/}"
+			#if [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $win_path_slash"* ]]; then
+				#return 0
+			#fi
+
+			## Check 4: Original Cygwin POSIX path (/cygdrive/c/...)
+			#if [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $cygwin_path"* ]]; then
+				#return 0
+			#fi
+
+			#( [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $win_path"* ]] || [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $win_path_escaped"* ]] || [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $win_path_slash"* ]] ) && ( [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $cygwin_path"* ]] ) && return 0
+
+			# Slightly more performance efficient. No expected scenario in which a MSW path has been added but a UNIX path has not.
+			( [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $win_path"* ]] || [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $win_path_escaped"* ]] || [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $win_path_slash"* ]] ) && return 0
+			cygwin_path="$(cygpath -u "$current_path")"  # explicit Cygwin POSIX path
+			( [[ "$gitconfig_content" == *"[safe]"* && "$gitconfig_content" == *"directory = $cygwin_path"* ]] ) && return 0
+		fi
+
+		# Explicit message clearly communicating safe-configuration action for transparency
+		#echo "Administrators ownership detected; configuring git safe.directory entry."
+
+		# perform safe git configuration exactly once after all efficient checks
+		# CAUTION: Tested to create functionally identical log entries through both '/usr/bin/git' and native git binaries. Ensure that remains the case if making any changes.
+		#"$scriptAbsoluteLocation" _write_configure_git_safe_directory_if_admin_owned_sequence "$cygwin_path" "$win_path_escaped" "$win_path_slash" "$win_path"
+		( _write_configure_git_safe_directory_if_admin_owned_sequence "$cygwin_path" "$win_path_escaped" "$win_path_slash" "$win_path" )
+	}
+	# Must be later, after set global variable "$scriptAbsoluteFolder" .
+	#_write_configure_git_safe_directory_if_admin_owned "$scriptAbsoluteFolder"
+	
 	# NOTICE: Recent versions of Cygwin seem to have replaced or omitted '/usr/bin/gpg.exe', possibly in favor of a symlink to '/usr/bin/gpg2.exe' .
 	# CAUTION: This override is specifically to ensure availability of 'gpg' binary through a function, but that could have the effect of presenting an incorrect gpg2 CLI interface to software expecting a gpg1 CLI interface.
 	 # In practice, Debian Linux seem to impose gpg v2 as the CLI interface for gpg - 'gpg --version' responds v2 .
@@ -1497,6 +1701,7 @@ _report_setup_ubcp() {
 
 
 	find /bin/ /usr/bin/ /sbin/ /usr/sbin/ | tee "$currentCygdriveC_equivalent"/core/infrastructure/ubcp-binReport > /dev/null
+	find /home/root/ | tee "$currentCygdriveC_equivalent"/core/infrastructure/ubcp-homeReport > /dev/null
 
 
 	apt-cyg show | cut -f1 -d\ | tail -n +2 | tee "$currentCygdriveC_equivalent"/core/infrastructure/ubcp-packageReport > /dev/null
@@ -15184,6 +15389,29 @@ _probe_prepare_abstractfs_appdir() {
 }
 
 
+
+
+# No production use (ie. not used by 'abstractfs' itself, but recommended flag variables as a standard for other scripts using 'abstractfs' to follow).
+#
+# Flag. Need 'abstractfs' (eg. ''./ubiquitous_bash.sh _abstractfs bash' ) path consistency (eg. '/dev/shm/uk4u/zjZktz7G/ubiquitous_bash.sh' ) enough to force subsequent commands (eg. ArduinoIDE) to run under Linux/WSL unless specifically exempted (eg. upload firmware under Cygwin/MSW after compile under Linux/WSL) .
+#_set_abstractfs_wsl
+_set_abstractfs_alwaysUNIXneverNative() {
+	export abstractfs_alwaysUNIXneverNative="true"
+}
+# Allow native paths (eg. 'C:\abstract/uk4u/zjZktz7G/ubiquitous_bash.sh' ) . STRONGLY DISCOURAGED, but may be default, because otherwise native MSWindows binaries would not be used by default.
+_set_abstractfs_allowNative() {
+	export abstractfs_alwaysUNIXneverNative="false"
+}
+_set_abstractfs_enable() {
+	export abstractfs_enable="true"
+}
+# Suggested default. If 'abstractfs' can be avoided, then native MSWindows binaries, etc, will be usable.
+_set_abstractfs_disable() {
+	export abstractfs_disable="true"
+}
+
+
+
 _reset_abstractfs() {
 	export abstractfs=
 	export abstractfs_base=
@@ -16109,6 +16337,727 @@ _resetFakeHomeEnv() {
 
 
 
+# Suggested defaults. If your python code (not python itself, nor venv, etc, but filenames for files your python application uses, such as datasets, models, etc) insists on absolute paths, and you must use it under both UNIX/Linux and Cygwin/MSW, then it is probably only needed temporarily to generate static assets (ie. occasional experimental fine-tuning of the latest available AI models). In which case you can put into production under solely UNIX/Linux if necessary, and develop with Docker (ie. factory) instead.
+# tldr; UNIX/Linux for python in production, Cygwin/MSW (ie. MSW native python) for python in development, as usual, and then you won't need abstractfs .
+#
+#_set_abstractfs_alwaysUNIXneverNative
+#_set_abstractfs_disable
+
+
+
+# EXAMPLE. Override or implement alternative with 'core.sh', 'ops.sh', or similar.
+_msw_python() {
+    #implies sequence
+    _prepare_msw_python
+
+
+    # ATTENTION: Dropping to an interactive shell in the midst of a bash function which provides standard output to another bash function
+    #
+    # ie. don't expect guaranteed sanity doing something like this in either bash or python
+    # echo $( echo result ; bash -i ) | tee > ./logfile.txt
+    #
+    # ALWAYS call interactively unless 'stdout' will be consumed. Functions, scripts, commands, get an interactive terminal to talk to, except very simple functions.
+    #
+    # ie. _fineTune_model  <->  Interactive Shell
+    # ie. _vector_model  <->  Interactive Shell
+    # ie. _inferenceModel | grep 'stuff' > description.txt  <->  Interactive Shell
+    # ie. result=$(_inferenceModel | grep 'correct')  <->  Non-Interactive
+    #
+    # Unfortunately, bash function calls from python do not enjoy the '$() > /dev/null 2>&1' syntactic convenience.
+    # Python calls to '_bin()' , '_bash()' , etc, must explicitly declare or implicitly default sanely whether interactive or non-interactive captured output.
+    
+    # lean.py ... is a template script from 'ubiquitous_bash' for lightweight manual changes
+    #"$scriptLocal"/python_msw/lean.py   #automatically replaced with autogenerated lean.py
+    #"$scriptLib"/python_msw/lean.py    #ATTTENTION: create persistent custom lean.py here
+
+
+    # WARNING: May be untested.
+    #python "$scriptLib_msw"'\python\lean.py' '_bin(["sleep", "90",], True, r"'"$scriptCall_bin_msw"'")'
+
+    #python "$scriptAbsoluteFolder_msw"'\lean.py' '_bash(["-i"], True, r"'"$scriptCall_bash_msw"'")'
+
+    python "$scriptAbsoluteFolder_msw"'\lean.py' '_bin(["_demo_msw_python",], True, r"'"$scriptCall_bin_msw"'", interactive=True)'
+
+    #python -i "$scriptAbsoluteFolder_msw"'\lean.py' '_python()'
+
+    #_bash
+}
+_msw_python_bash() {
+    #implies sequence
+    _prepare_msw_python
+
+    _bash
+}
+_msw_python_bin() {
+    #implies sequence
+    _prepare_msw_python
+
+    _bin "$@"
+}
+
+
+
+
+# EXAMPLE. Override or implement alternative with 'core.sh', 'ops.sh', or similar.
+_prepare_msw_python() {
+    _prepare_msw_python_3
+}
+_prepare_msw_python_3() {
+    _prepare_msw_python_3_10
+}
+# EXAMPLE. Override or implement alternative (discouraged) with 'core.sh', 'ops.sh', or similar, if necessary.
+_prepare_msw_python_3_10() {
+    _set_msw_python_3_10
+
+    # ATTENTION: implies sequence
+    local currentUID="$sessionid"
+
+    # ATTENTION: Do NOT enable. Prevents 'trap' cleanup of abandoned lock file.
+    #local currentUID=$(_uid 18)
+
+    local currentUID_length=${#currentUID}
+    local currentUID_length_plus1=$(( currentUID_length + 1 ))
+
+    local currentPATH="$PATH"
+
+    _write_python_hook_local() {
+        _messagePlain_nominal 'prepare: python hook' > /dev/null >&2
+    
+        local ubcore_accessoriesFile_python
+        local ubcoreDir_accessories_python
+        local ubcore_accessoriesFile_python_ubhome
+
+        ubcore_accessoriesFile_python=$(cygpath -w "$scriptLib"/python_msw/lean.py)
+        ubcoreDir_accessories_python=$(cygpath -w "$scriptLib"/python_msw)
+        ubcore_accessoriesFile_python_ubhome=$(cygpath -w "$scriptLib"/python_msw/lean.py)
+        if [[ ! -e "$ubcore_accessoriesFile_python" ]] || [[ ! -e "$ubcoreDir_accessories_python" ]] || [[ ! -e "$ubcore_accessoriesFile_python_ubhome" ]]
+        then
+            ( _messagePlain_warn 'warn: missing: scriptLib/python_msw/...' >&2 ) > /dev/null
+            
+            ubcore_accessoriesFile_python=$(cygpath -w "$scriptLocal"/python_msw/lean.py)
+            ubcoreDir_accessories_python=$(cygpath -w "$scriptLocal"/python_msw)
+            ubcore_accessoriesFile_python_ubhome=$(cygpath -w "$scriptLocal"/python_msw/lean.py)
+            if [[ ! -e "$ubcore_accessoriesFile_python" ]] || [[ ! -e "$ubcoreDir_accessories_python" ]] || [[ ! -e "$ubcore_accessoriesFile_python_ubhome" ]]
+            then
+                ( _messagePlain_warn 'warn: missing: scriptLocal/python_msw/...' >&2 ) > /dev/null
+            fi
+        fi
+
+        local ubcore_ubcorerc_pythonrc="lean"
+        
+        _setupUbiquitous_accessories_here-python_hook > "$scriptLocal"/python_msw/pythonrc."$currentUID"
+        if [[ ! -e "$scriptLocal"/python_msw/pythonrc ]] || ! diff --unified=3 "$scriptLocal"/python_msw/pythonrc."$currentUID" "$scriptLocal"/python_msw/pythonrc > /dev/null
+        then
+            mv -f "$scriptLocal"/python_msw/pythonrc."$currentUID" "$scriptLocal"/python_msw/pythonrc
+        else
+            rm -f "$scriptLocal"/python_msw/pythonrc."$currentUID"
+        fi
+        
+        export _PYTHONSTARTUP=$(cygpath -w "$scriptLocal"/python_msw/pythonrc)
+        export PYTHONSTARTUP="$_PYTHONSTARTUP"
+    }
+    unset _PYTHONSTARTUP
+    
+
+    local current_done__prepare_msw_python_procedure="false"
+
+
+    _lock_prepare_python_msw() {
+        _messagePlain_nominal 'prepare: wait: lock: _lock_prepare_python_msw' > /dev/null >&2
+        local dateA
+        local dateB
+        local dateDelta
+        while [[ $(cat "$scriptLocal"/python_msw.lock 2> /dev/null | head -c "$currentUID_length") != "$currentUID" ]]
+        do
+            if [[ ! -e "$scriptLocal"/python_msw.lock ]]
+            then
+                echo "$currentUID"$(date +%s | tr -dc '0-9') > "$scriptLocal"/python_msw.lock."$currentUID"
+                mv -f "$scriptLocal"/python_msw.lock."$currentUID" "$scriptLocal"/python_msw.lock
+            fi
+
+            sleep 7
+            [[ $(cat "$scriptLocal"/python_msw.lock 2> /dev/null | head -c "$currentUID_length") == "$currentUID" ]] && return 0
+
+            _messagePlain_probe "wait: lock" > /dev/null >&2
+
+            while [[ -e "$scriptLocal"/python_msw.lock ]] && [[ $(cat "$scriptLocal"/python_msw.lock 2> /dev/null | head -c "$currentUID_length") != "$currentUID" ]]
+            do
+                dateA=$(cat "$scriptLocal"/python_msw.lock 2> /dev/null | tail -c +"$currentUID_length_plus1" | tr -dc '0-9')
+                dateB=$(date +%s | tr -dc '0-9')
+                _messagePlain_probe "$dateB - $dateA"
+                dateDelta=$(bc <<< "$dateB - $dateA")
+
+                sleep 7
+
+                # Normal prepare time is <<2minutes, if that.
+                [[ "$dateDelta" -gt "2700" ]] && rm -f "$scriptLocal"/python_msw.lock
+            done
+        done
+    }
+    _lock_prepare_python_msw
+    #...
+    #rm -f "$scriptLocal"/python_msw.lock
+
+    # WARNING: Do not add '-msw_python_3_10' or similar suffix to dumbpath_file . Use separate derivative projects for separate venv as normally needed for different python versions.
+    local dumbpath_file="$scriptLocal"/"$dumbpath_prefix"dumbpath.var
+    local dumbpath_contents=""
+    dumbpath_contents=$(cat "$dumbpath_file" 2> /dev/null)
+    if [[ "$dumbpath_contents" != "$dumbpath_file" ]]
+    then
+        # ATTENTION: WARNING: Anaconda is usually unnecessary, STRONGLY DISCOURAGED, and NOT automatically installed (eg. with 'ubdist/OS').
+        # Automatic installation of Anaconda is not expected useful for any purpose - only workstations for personal evaluation of open-source projects which happen to use Anaconda for a non=production purpose are expected to use Anaconda, if at all.
+        # Manual installation of Anaconda:
+        # https://docs.conda.io/projects/conda/en/latest/user-guide/install/windows.html
+        # https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html
+
+
+
+        
+
+        # erase any venv, etc, which may use absolute paths
+        _messagePlain_nominal 'prepare: python_msw' > /dev/null >&2
+
+        export safeToDeleteGit="true"
+        _safeRMR "$scriptLocal"/python_msw
+        mkdir -p "$scriptLocal"/python_msw
+
+
+        #[[ "$current_done__prepare_msw_python_procedure" == "false" ]] && 
+        _prepare_msw_python_procedure
+        current_done__prepare_msw_python_procedure="true"
+
+
+        
+        # write python hook ; mv -f
+
+        #[[ "$_PYTHONSTARTUP" == "" ]] && 
+        _write_python_hook_local
+
+
+#if false
+#then
+        # rebuild venv...
+        _messagePlain_nominal 'prepare: venv' > /dev/null >&2
+        
+        mkdir -p "$scriptLocal"/python_msw/venv
+        ! cd "$scriptLocal"/python_msw/venv && _stop 1
+        python3 -m venv default_venv > /dev/null >&2
+
+        
+        cp -a default_venv/Scripts/activate default_venv/Scripts/activate_msw
+        dos2unix default_venv/Scripts/activate_msw
+        chmod u+x default_venv/Scripts/activate_msw
+
+        #source default_venv/Scripts/activate > /dev/null >&2
+        _messagePlain_probe source default_venv/Scripts/activate_msw > /dev/null >&2
+        source default_venv/Scripts/activate_msw > /dev/null >&2
+        PATH="$currentPATH"
+
+        _messagePlain_nominal 'prepare: venv: set' > /dev/null >&2
+        _set_msw_python_procedure
+
+        _messagePlain_probe _install_dependencies_msw_python_procedure-specific "" "" > /dev/null >&2
+        _install_dependencies_msw_python_procedure-specific "" ""
+        
+        _messagePlain_probe python -c "import sys; print(sys.path)" > /dev/null >&2
+        python -c "import sys; print(sys.path)" > /dev/null >&2
+
+        #deactivate > /dev/null >&2
+#fi
+
+
+
+        # morsels...
+        _messagePlain_nominal 'prepare: morsels: pip' > /dev/null >&2
+
+        _morsels_msw_pip_python_3_10
+
+
+
+
+
+
+
+
+
+
+
+        # write > "$dumbpath_file" ; mv -f
+
+        # ATTENTION: Disable (ie. comment out) to force always rebuild, packages install, etc.
+        echo "$dumbpath_file" > "$dumbpath_file"."$currentUID"
+        mv -f "$dumbpath_file"."$currentUID" "$dumbpath_file"
+
+
+
+    fi
+
+    [[ "$current_done__prepare_msw_python_procedure" == "false" ]] && _prepare_msw_python_procedure
+    current_done__prepare_msw_python_procedure="true"
+
+    [[ "$_PYTHONSTARTUP" == "" ]] && _write_python_hook_local
+
+#if false
+#then
+    _messagePlain_nominal 'prepare: venv: activate' > /dev/null >&2
+    ! cd "$scriptLocal"/python_msw/venv && _stop 1
+    #sourcedefault_venv/Scripts/activate > /dev/null >&2
+    _messagePlain_probe source  default_venv/Scripts/activate_msw > /dev/null >&2
+    source default_venv/Scripts/activate_msw > /dev/null >&2
+    PATH="$currentPATH"
+
+    _messagePlain_nominal 'prepare: venv: set' > /dev/null >&2
+    _set_msw_python_procedure
+    
+    _messagePlain_probe python -c "import sys; print(sys.path)" > /dev/null >&2
+    python -c "import sys; print(sys.path)" > /dev/null >&2
+#fi
+
+    _messagePlain_probe _install_dependencies_msw_python_procedure-specific "" "" > /dev/null >&2
+    _install_dependencies_msw_python_procedure-specific "" ""
+
+
+
+
+
+    #set ACCELERATE="%VENV_DIR%\Scripts\accelerate.exe"
+
+
+    rm -f "$scriptLocal"/python_msw.lock
+}
+
+
+
+
+
+
+
+# EXAMPLE. Override (preferred) or implement alternative (discouraged) with 'core.sh', 'ops.sh', or similar.
+_morsels_msw_pip_python_3_10() {
+    local currentPackages_indicator_list=( "huggingface_hub[cli]" )
+    local currentPackages_list=( "huggingface_hub[cli]" )
+    local currentPackage
+
+    local currentWork="false"
+    for currentPackage in "${currentPackages_indicator_list[@]}"
+    do
+        ! pip show "$currentPackage" > /dev/null 2>&1 && currentWork="true"
+        #! python -m pip show "$currentPackage" > /dev/null 2>&1 && currentWork="true"
+    done
+    [[ "$currentWork" == "false" ]] && return 0
+
+    [[ "$nonet" != "true" ]] && python -m pip install --upgrade pip > /dev/null >&2
+
+    for currentPackage in "${currentPackages_list[@]}"
+    do
+        #,win32,win_arm64
+        [[ "$nonet" != "true" ]] && pip download "$currentPackage" --platform win_amd64 --only-binary=:all: --dest "$(cygpath -w "$scriptAbsoluteFolder"/_bundle/morsels/pip)" > /dev/null >&2
+        
+        pip install --no-index --find-links="$(cygpath -w "$scriptAbsoluteFolder"/_bundle/morsels/pip)" "$currentPackage" > /dev/null >&2
+
+        # Strongly discouraged! Avoid surprise breakage by never relying on upstream repositories.
+        #[[ "$nonet" != "true" ]] && pip install "$currentPackage" > /dev/null >&2
+    done
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+_discover-msw_python() {
+    _discover_procedure-msw_python "$@"
+    if [[ "$lib_dir_msw_python_wheels" != "" ]]
+    then
+        export lib_dir_msw_python_wheels_msw=$(cygpath -w "$lib_dir_msw_python_wheels")
+        if [[ "$_PATH_pythonDir" != "" ]]
+        then
+            export lib_dir_msw_python_wheels_relevant="$lib_dir_msw_python_wheels_msw"
+        else
+            export lib_dir_msw_python_wheels_relevant="$lib_dir_msw_python_wheels"
+        fi
+        return 0
+    fi
+    export lib_dir_msw_python_wheels_msw=""
+    unset lib_dir_msw_python_wheels_msw
+    export lib_dir_msw_python_wheels_relevant=""
+    unset lib_dir_msw_python_wheels_relevant
+    return 1
+}
+_discover_procedure-msw_python() {
+    export lib_dir_msw_python_wheels
+    
+    export lib_dir_msw_python_wheels="$scriptAbsoluteFolder"/.msw_python_wheels
+    if [[ -e "$lib_dir_msw_python_wheels" ]]
+    then
+        . "$lib_dir_msw_python_wheels"/_msw_python_wheels.sh
+        return 0
+    fi
+    export lib_dir_msw_python_wheels="$scriptLocal"/.msw_python_wheels
+    if [[ -e "$lib_dir_msw_python_wheels" ]]
+    then
+        . "$lib_dir_msw_python_wheels"/_msw_python_wheels.sh
+        return 0
+    fi
+    export lib_dir_msw_python_wheels="$scriptLib"/.msw_python_wheels
+    if [[ -e "$lib_dir_msw_python_wheels" ]]
+    then
+        . "$lib_dir_msw_python_wheels"/_msw_python_wheels.sh
+        return 0
+    fi
+
+    
+    export lib_dir_msw_python_wheels="$scriptLib"/ubiquitous_bash/_lib/.msw_python_wheels
+    if [[ -e "$lib_dir_msw_python_wheels" ]]
+    then
+        . "$lib_dir_msw_python_wheels"/_msw_python_wheels.sh
+        return 0
+    fi
+    export lib_dir_msw_python_wheels="$scriptLib"/ubDistBuild/_lib/ubiquitous_bash/_lib/.msw_python_wheels
+    if [[ -e "$lib_dir_msw_python_wheels" ]]
+    then
+        . "$lib_dir_msw_python_wheels"/_msw_python_wheels.sh
+        return 0
+    fi
+
+    export lib_dir_msw_python_wheels=""
+    unset lib_dir_msw_python_wheels
+}
+_install_dependencies_msw_python_procedure-specific() {
+    _messagePlain_nominal 'install: dependencies' > /dev/null >&2
+
+    _discover-msw_python
+
+    # Not all of these packages are necessary for dist/OS other than native MSWindows.
+    local currentPackages_list=("pyreadline3" "colorama")
+    local currentPackage
+
+    if [[ "$nonet" != "true" ]]
+    then
+        _pip_upgrade() {
+            local currentUpgrade="false"
+            for currentPackage in "${currentPackages_list[@]}"
+            do
+                ! "$1"pip show "$currentPackage" > /dev/null 2>&1 && currentUpgrade="true"
+                #! "$2"python -m pip show "$currentPackage" > /dev/null 2>&1 && currentUpgrade="true"
+            done
+            [[ "$currentUpgrade" == "false" ]] && return 0
+            "$2"python -m pip install --upgrade pip > /dev/null >&2
+        }
+        _pip_upgrade "$1" "$2"
+    fi
+
+
+    if [[ "$nonet" != "true" ]]
+    then
+
+        if [[ "$lib_dir_msw_python_wheels" != "" ]]
+        then
+            # ATTRIBUTION-AI: ChatGPT o3  2025-04-19  (partially)
+            _pip_download() {
+                "$1"pip show "$3" > /dev/null 2>&1 && return 0
+                #"$2"python -m pip show "$3" > /dev/null 2>&1 && return 0
+
+                #--python-version 3.1
+                "$1"pip download "$3" --platform win_amd64 --only-binary=:all: --dest "$lib_dir_msw_python_wheels_relevant" > /dev/null >&2
+                #"$1"pip download "$3" --platform win32 --only-binary=:all: --dest "$lib_dir_msw_python_wheels_relevant" > /dev/null >&2
+                "$1"pip download "$3" --platform win_arm64 --only-binary=:all: --dest "$lib_dir_msw_python_wheels_relevant" > /dev/null >&2
+                
+                #"$2"python -m pip download "$3" --platform win_amd64 --only-binary=:all: --dest "$lib_dir_msw_python_wheels_relevant" > /dev/null >&2
+                #"$2"python -m pip download "$3" --platform win32 --only-binary=:all: --dest "$lib_dir_msw_python_wheels_relevant" > /dev/null >&2
+                #"$2"python -m pip download "$3" --platform win_arm64 --only-binary=:all: --dest "$lib_dir_msw_python_wheels_relevant" > /dev/null >&2
+            }
+
+            for currentPackage in "${currentPackages_list[@]}"
+            do
+                _pip_download "$1" "$2" "$currentPackage"
+            done
+        fi
+    fi
+
+
+    if [[ "$lib_dir_msw_python_wheels_relevant" != "" ]]
+    then
+        _pip_install_nonet() {
+            "$1"pip show "$3" > /dev/null 2>&1 && return 0
+            #"$2"python -m pip show "$3" > /dev/null 2>&1 && return 0
+
+            "$1"pip install --no-index --find-links="$lib_dir_msw_python_wheels_relevant" "$3" > /dev/null >&2
+            #"$2"python -m pip install --no-index --find-links="$lib_dir_msw_python_wheels_relevant" "$3" > /dev/null >&2
+        }
+        for currentPackage in "${currentPackages_list[@]}"
+        do
+            _pip_install_nonet "$1" "$2" "$currentPackage"
+        done
+    fi
+    
+    if [[ "$nonet" != "true" ]]
+    then
+        _pip_install() {
+            "$1"pip show "$3" > /dev/null 2>&1 && return 0
+            #"$2"python -m pip show "$3" > /dev/null 2>&1 && return 0
+
+            "$1"pip install "$3" > /dev/null >&2
+            #"$2"python -m pip install "$3" > /dev/null >&2
+        }
+        for currentPackage in "${currentPackages_list[@]}"
+        do
+            _pip_install "$1" "$2" "$currentPackage"
+        done
+    fi
+}
+_install_dependencies_msw_python_sequence-specific() {
+    _messageNormal '     install: dependencies: '"$1" > /dev/null >&2
+    _start
+
+    "$1"
+    if [[ ! -e "$_PATH_pythonDir" ]]
+    then
+        ( _messagePlain_warn 'warn: skip: missing: python: '"$1" >&2 ) > /dev/null
+        _stop 1
+    fi
+    
+    _install_dependencies_msw_python_procedure-specific
+
+    _stop
+}
+_install_dependencies_msw_python() {
+    _install_dependencies_msw_python_sequence-specific _set_msw_python_3_10
+}
+
+
+
+
+_prepare_msw_python_procedure() {
+    local currentUID=$(_uid)
+
+    if [[ ! -e "$_PATH_pythonDir"/python3 ]] && [[ $(find "$_PATH_pythonDir" -maxdepth 1 -iname 'python3' -type f -print -quit 2>/dev/null | tr -dc 'a-zA-Z0-9') == "" ]]
+    then
+        echo '#!/usr/bin/env bash
+        python "$@"' > "$_PATH_pythonDir"/python3."$currentUID"
+        chmod u+x "$_PATH_pythonDir"/python3."$currentUID"
+        mv -f "$_PATH_pythonDir"/python3."$currentUID" "$_PATH_pythonDir"/python3
+        chmod u+x "$_PATH_pythonDir"/python3
+    fi
+    
+
+    mkdir -p "$scriptLocal"
+
+    mkdir -p "$scriptLocal"/python_msw
+
+    # In practice, 'pip' morsels may be all that is needed (ie. using 'pip' morsels for venv installation).
+    mkdir -p "$scriptAbsoluteFolder"/_bundle/morsels
+    mkdir -p "$scriptAbsoluteFolder"/_bundle/morsels/pip
+
+    mkdir -p "$scriptAbsoluteFolder"/_bundle/morsels/venv
+    mkdir -p "$scriptAbsoluteFolder"/_bundle/morsels/accelerate
+
+    # STRONGLY DISCOURAGED!
+    mkdir -p "$scriptAbsoluteFolder"/_bundle/morsels/conda
+
+    if [[ ! -e "$scriptLocal"/python_msw/lean.py ]] || ! diff --unified=3 "$scriptAbsoluteFolder"/lean.py "$scriptLocal"/python_msw/lean.py > /dev/null
+    then
+        cp -f "$scriptAbsoluteFolder"/lean.py "$scriptLocal"/python_msw/lean.py."$currentUID" > /dev/null 2>&1
+        mv -f "$scriptLocal"/python_msw/lean.py."$currentUID" "$scriptLocal"/python_msw/lean.py
+        if [[ ! -e "$scriptLocal"/python_msw/lean.py ]]
+        then
+            cp -f "$scriptLib"/ubiquitous_bash/lean.py "$scriptLocal"/python_msw/lean.py."$currentUID"
+            mv -f "$scriptLocal"/python_msw/lean.py."$currentUID" "$scriptLocal"/python_msw/lean.py
+        fi
+    fi
+    [[ ! -e "$scriptLocal"/python_msw/lean.py ]] && ( _messagePlain_warn 'warn: missing: scriptLocal/python_msw/lean.py' >&2 ) > /dev/null
+
+
+    _install_dependencies_msw_python_procedure-specific "" ""
+
+    return 0
+}
+
+
+
+
+# UNIX/Linux of course has no need for such overrides, having normal Python installations in directories in PATH and no distinction between native/MSW and Cygwin/MSW binaries .
+_override_msw_path_python_procedure() {
+		local path_entry entry IFS=':'
+		local new_path=""
+		for entry in $PATH ; do
+			# Skip adding if this entry matches current_binaries_path exactly
+			[ "$entry" = "$current_binaries_path" ] && continue
+			
+			# Append current entry to the new_path
+			if [ -z "$new_path" ]; then
+				new_path="$entry"
+			else
+				new_path="${new_path}:${entry}"
+			fi
+		done
+
+		# Finally, explicitly prepend the git path
+		export PATH="${current_binaries_path}:${new_path}"
+
+        [[ "$1" == "" ]] && export _PATH_pythonDir="$current_binaries_path"
+
+        [[ "$1" != "" ]] && ( _messagePlain_probe_var PATH >&2 ) > /dev/null
+
+        return 0
+}
+_detect_msw_path_python() {
+        current_binaries_path="$1"
+
+        ! [[ -d "$current_binaries_path" ]] && ( _messagePlain_warn 'warn: missing: python: '"$1" >&2 ) && return 1
+
+        ( _messagePlain_good 'success: found: python: '"$1" >&2 ) > /dev/null
+}
+_detect_msw_path_python-localappdata() {
+        current_binaries_path=$(cygpath -u "$LOCALAPPDATA")
+        current_binaries_path="$current_binaries_path"/"$1"
+
+        ! [[ -d "$current_binaries_path" ]] && ( _messagePlain_warn 'warn: missing: python: '"$1" >&2 ) && return 1
+
+        ( _messagePlain_good 'success: found: python: '"$1" >&2 ) > /dev/null
+}
+_override_msw_path_python_3_10() {
+    _messagePlain_nominal 'override: '${FUNCNAME[0]}
+
+    local current_binaries_path=""
+
+    # WARNING: Python 'embed' package may not be tested. Use the installer instead.
+
+    _detect_msw_path_python "$scriptLib"/msw/python-3.10.11-embed-amd64
+    [[ "$?" == "0" ]] && [[ -d "$current_binaries_path" ]] && _override_msw_path_python_procedure && return 0
+
+    _detect_msw_path_python "$scriptLocal"/msw/python-3.10.11-embed-amd64
+    [[ "$?" == "0" ]] && [[ -d "$current_binaries_path" ]] && _override_msw_path_python_procedure && return 0
+
+    _detect_msw_path_python-localappdata "Programs/Python/python-3.10.11-embed-amd64"
+    [[ "$?" == "0" ]] && [[ -d "$current_binaries_path" ]] && _override_msw_path_python_procedure && return 0
+
+    _detect_msw_path_python-localappdata "Programs/Python/Python310"
+    [[ "$?" == "0" ]] && [[ -d "$current_binaries_path" ]] && _override_msw_path_python_procedure && return 0
+
+
+    ( _messagePlain_bad 'FAIL: missing: python: '${FUNCNAME[0]} >&2 ) > /dev/null
+    ( _messagePlain_request 'request: install: https://www.python.org/ftp/python/3.10.11/python-3.10.11-amd64.exe' >&2 ) > /dev/null
+    #( _messagePlain_request 'request: install: https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip' >&2 ) > /dev/null
+    #( _messagePlain_request 'request: extract: '"$scriptLib"/msw/ >&2 ) > /dev/null
+    #( _messagePlain_request 'request: extract: '"$scriptLocal"/msw/ >&2 ) > /dev/null
+    #( _messagePlain_request 'request: extract: '"$LOCALAPPDATA"'Programs/Python' >&2 ) > /dev/null
+    _messageFAIL >&2
+}
+
+# CAUTION: Called by _setupUbiquitous_accessories_here-python_hook .
+_set_msw_python_procedure() {
+    # WARNING: Invalid variables for 'python...embed' .
+    export _pythonLib=$(find "$_PATH_pythonDir" -iname 'Lib' -type d -print -quit)
+    export _pythonSitePackages=$(find "$_PATH_pythonDir" -iname 'site-packages' -type d -print -quit)
+    export _pythonPip_file=$(find "$_PATH_pythonDir" -iname 'pip3.exe' -type f -print -quit)
+    export _pythonPip=$([[ "$_pythonPip_file" != "" ]] && _getAbsoluteFolder "$_pythonPip_file")
+    export _pythonPipInstaller_file=$(find "$_PATH_pythonDir" -iname 'get-pip.py' -type f -print -quit)
+
+    # DUBIOUS
+    export _transformersCache="$scriptLocal"/transformers-cache
+
+
+    #export _python=$(find "$_PATH_pythonDir" -iname 'python.exe' -type f -print -quit)
+
+    #export _accelerate=$(find "$_PATH_pythonDir" -iname 'accelerate.exe' -type f -print -quit)
+
+
+    [[ ! -e "$_pythonLib" ]] && ( _messagePlain_bad 'bad: missing: $_pythonLib' >&2 ) > /dev/null && _messageFAIL >&2
+    [[ ! -e "$_pythonSitePackages" ]] && ( _messagePlain_bad 'bad: missing: $_pythonLib' >&2 ) > /dev/null && _messageFAIL >&2
+    [[ ! -e "$_pythonPip_file" ]] && ( _messagePlain_bad 'bad: missing: $_pythonLib' >&2 ) > /dev/null && _messageFAIL >&2
+    [[ ! -e "$_pythonPip" ]] && ( _messagePlain_bad 'bad: missing: $_pythonLib' >&2 ) > /dev/null && _messageFAIL >&2
+    #[[ ! -e "$_pythonPipInstaller_file" ]] && ( _messagePlain_bad 'bad: missing: $_pythonLib' >&2 ) > /dev/null && _messageFAIL >&2
+
+    local current_binaries_path
+    current_binaries_path="$_PATH_pythonDir"
+    _override_msw_path_python_procedure "_PATH_pythonDir"
+
+    current_binaries_path="$_pythonPip"
+    _override_msw_path_python_procedure "pip"
+
+    local VIRTUAL_ENV_unix
+    [[ "$VIRTUAL_ENV" != "" ]] && VIRTUAL_ENV_unix=$(cygpath -u "$VIRTUAL_ENV")
+    VIRTUAL_ENV_unix="$VIRTUAL_ENV_unix"/Scripts
+    if [[ -e "$VIRTUAL_ENV_unix" ]]
+    then
+        export _pythonLib=$(find "$VIRTUAL_ENV_unix"/.. -iname 'Lib' -type d -print -quit)
+        export _pythonSitePackages=$(find "$VIRTUAL_ENV_unix"/.. -iname 'site-packages' -type d -print -quit)
+        export _pythonPip_file=$(find "$VIRTUAL_ENV_unix" -iname 'pip3.exe' -type f -print -quit)
+        export _pythonPip=$([[ "$_pythonPip_file" != "" ]] && _getAbsoluteFolder "$_pythonPip_file")
+        export _pythonPipInstaller_file=$(find "$VIRTUAL_ENV_unix" -iname 'get-pip.py' -type f -print -quit)
+
+
+        #export _python=$(find "$_PATH_pythonDir" -iname 'python.exe' -type f -print -quit)
+
+        #export _accelerate=$(find "$_PATH_pythonDir" -iname 'accelerate.exe' -type f -print -quit)
+
+
+        [[ ! -e "$_pythonLib" ]] && ( _messagePlain_bad 'bad: missing: $_pythonLib' >&2 ) > /dev/null && _messageFAIL >&2
+        [[ ! -e "$_pythonSitePackages" ]] && ( _messagePlain_bad 'bad: missing: $_pythonLib' >&2 ) > /dev/null && _messageFAIL >&2
+        [[ ! -e "$_pythonPip_file" ]] && ( _messagePlain_bad 'bad: missing: $_pythonLib' >&2 ) > /dev/null && _messageFAIL >&2
+        [[ ! -e "$_pythonPip" ]] && ( _messagePlain_bad 'bad: missing: $_pythonLib' >&2 ) > /dev/null && _messageFAIL >&2
+        #[[ ! -e "$_pythonPipInstaller_file" ]] && ( _messagePlain_bad 'bad: missing: $_pythonLib' >&2 ) > /dev/null && _messageFAIL >&2
+
+
+        current_binaries_path="$VIRTUAL_ENV_unix"
+        _override_msw_path_python_procedure "VIRTUAL_ENV"
+
+        current_binaries_path="$_pythonPip"
+        _override_msw_path_python_procedure "VIRTUAL_ENV_pip"
+    fi
+
+    unset PYTHONHOME
+    export PYTHONSTARTUP="$_PYTHONSTARTUP"
+    
+    return 0
+}
+
+set_msw_python() {
+    _set_msw_python_3_10 "$@"
+}
+_set_msw_python_3_10() {
+    _override_msw_path_python_3_10 "$@"
+
+    _set_msw_python_procedure "$@"
+}
+
+
+
+_demo_msw_python() {
+    _messagePlain_nominal 'demo: '${FUNCNAME[0]} > /dev/null >&2
+    sleep 0.6
+    "$@"
+    _bash
+}
+
+
+# STRONGLY DISCOURAGED
+
+
+
+
+
+
 _write_wslconfig() {
     ! _if_cygwin && _messagePlain_bad 'fail: Cygwin/MSW only' && return 1
     if _if_cygwin
@@ -16631,6 +17580,7 @@ _visualPrompt() {
 	
 	export currentChroot=
 	[[ "$chrootName" != "" ]] && export currentChroot="$chrootName"
+	#[[ "$VIRTUAL_ENV_PROMPT" != "" ]] && export currentChroot=python_"$VIRTUAL_ENV_PROMPT"
 	
 	
 	#+%H:%M:%S\ %Y-%m-%d\ Q%q
@@ -16671,14 +17621,24 @@ _visualPrompt() {
 	
 	
 	
+	#if _if_cygwin
+	#then
+		#export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_nixShell"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]\[\033[37m\]\w\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '
+	#elif ( uname -a | grep -i 'microsoft' > /dev/null 2>&1 || uname -a | grep -i 'WSL2' > /dev/null 2>&1 )
+	#then
+		#export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"-wsl2'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_nixShell"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]\[\033[37m\]\w\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '
+	#else
+		#export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_nixShell"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '	
+	#fi
+	
 	if _if_cygwin
 	then
-		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_nixShell"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]\[\033[37m\]\w\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '
+		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(([[ "$VIRTUAL_ENV_PROMPT" != "" ]] && echo -n "$VIRTUAL_ENV_PROMPT") || date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_nixShell"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]\[\033[37m\]\w\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '
 	elif ( uname -a | grep -i 'microsoft' > /dev/null 2>&1 || uname -a | grep -i 'WSL2' > /dev/null 2>&1 )
 	then
-		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"-wsl2'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_nixShell"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]\[\033[37m\]\w\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '
+		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"-wsl2'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(([[ "$VIRTUAL_ENV_PROMPT" != "" ]] && echo -n "$VIRTUAL_ENV_PROMPT") || date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_nixShell"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]\[\033[37m\]\w\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '
 	else
-		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_nixShell"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '	
+		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(([[ "$VIRTUAL_ENV_PROMPT" != "" ]] && echo -n "$VIRTUAL_ENV_PROMPT") || date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_nixShell"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '	
 	fi
 	
 	#export PS1="$prompt_nixShell""$PS1"
@@ -17373,6 +18333,46 @@ alias l=_l
 
 
 
+# Unusual. Please keep these custom Docker containers to a minimum: essential factories (eg. fine-tuning) only, not application specific dependency containers (eg. databases). Use derivative 'fork' projects of ubiquitous_bash instead.
+
+
+_here_dockerfile_runpod-pytorch-heavy() {
+
+cat << 'CZXWXcRMTo8EmM8i4d'
+#docker build -t runpod-pytorch-heavy .
+FROM runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04
+
+#https://huggingface.co/blog/mlabonne/sft-llama3
+#https://huggingface.co/blog/mlabonne/merge-models
+
+RUN python -m pip install --upgrade pip
+RUN pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+RUN pip install --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate bitsandbytes
+
+WORKDIR /
+
+#docker image inspect runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04 --format '{{json .Config.Entrypoint}} {{json .Config.Cmd}}'
+CMD ["/opt/nvidia/nvidia_entrypoint.sh"]
+CZXWXcRMTo8EmM8i4d
+
+}
+
+
+__factoryCreate_runpod-pytorch-heavy() {
+    _start
+
+    cd "$safeTmp"
+    _here_dockerfile_runpod-pytorch-heavy > Dockerfile
+    docker build -t runpod-pytorch-heavy .
+
+    _stop
+}
+
+
+
+
+
+
 # ATTENTION: Indentation, commenting, etc, is intended to allow copy/paste to scratch text files for copy/paste to terminal.
 
 #. shortcuts/factory/factory.sh ; _factory_axolotl
@@ -17408,6 +18408,14 @@ factory_datasetDir='/c/q/p/zCore/infrastructure/ubiquitous_bash/_local/dataset'
 [[ -e ./dataset ]] && factory_datasetDir="$factory_projectDir"/dataset
 [[ -e ./_local/dataset ]] && factory_datasetDir="$factory_projectDir"/_local/dataset
 
+factory_knowledgeDir='/c/q/p/zCore/infrastructure/ubiquitous_bash/_local/knowledge'
+[[ -e ./knowledge ]] && factory_knowledgeDir="$factory_projectDir"/knowledge
+[[ -e ./_local/knowledge ]] && factory_knowledgeDir="$factory_projectDir"/_local/knowledge
+
+factory_knowledge_distillDir='/c/q/p/zCore/infrastructure/ubiquitous_bash/_local/knowledge_distill'
+[[ -e ./knowledge_distill ]] && factory_knowledge_distillDir="$factory_projectDir"/knowledge_distill
+[[ -e ./_local/knowledge_distill ]] && factory_knowledge_distillDir="$factory_projectDir"/_local/knowledge_distill
+
 # ###
 # PASTE
 # ###
@@ -17426,6 +18434,10 @@ _set_factory_dir
 
 
 # ###
+# PASTE
+# ###
+
+docker pull axolotlai/axolotl:main-latest
 
 _messagePlain_request 'request: paste ->'
 echo > ./._run-factory_axolotl
@@ -17436,13 +18448,9 @@ docker inspect --format='{{json .Config.Entrypoint}}' axolotlai/axolotl:main-lat
 #echo 'bash -i' >> ./._run-factory_axolotl
 _messagePlain_request 'request: <- paste'
 
-# ###
-
-
 
 # ###
-# PASTE
-# ###
+
 
 ! type _getAbsoluteLocation > /dev/null 2>&1 && exit 1
 
@@ -17456,12 +18464,12 @@ then
 #--privileged
 #--ipc=host --ulimit memlock=-1 --ulimit stack=67108864
 #-v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads
-docker run --shm-size=20g --name axolotl-$(_uid 14) --gpus "all" -v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_projectDir":/workspace/project --rm -it axolotlai/axolotl:main-latest "${dockerRunArgs[@]}"
+docker run --shm-size=20g --name axolotl-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_knowledgeDir":/knowledge -v "$factory_knowledge_distillDir":/knowledge_distill -v "$factory_projectDir":/workspace/project --rm -it axolotlai/axolotl:main-latest "${dockerRunArgs[@]}"
 fi
 if ! _if_cygwin
 then
 # WARNING: May be untested.
-docker run --shm-size=20g --name axolotl-$(_uid 14) --gpus "all" -v '/home/user/___quick':/q -v '/home/user/core':/core -v "/home/user"'/Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_projectDir":/workspace/project --rm -it axolotlai/axolotl:main-latest "${dockerRunArgs[@]}"
+docker run --shm-size=20g --name axolotl-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v '/home/user/___quick':/q -v '/home/user/core':/core -v "/home/user"'/Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_projectDir":/workspace/project --rm -it axolotlai/axolotl:main-latest "${dockerRunArgs[@]}"
 fi
 
 # ###
@@ -17471,6 +18479,135 @@ fi
 
 
 }
+
+
+
+
+_factory_runpod-official() {
+
+! type _set_factory_dir > /dev/null 2>&1 && exit 1
+_set_factory_dir
+
+
+
+# ###
+# PASTE
+# ###
+
+[[ JUPYTER_PASSWORD == "" ]] && export JUPYTER_PASSWORD=$(openssl rand 768 | base64 | tr -dc 'a-zA-Z0-9' | tr -d 'acdefhilmnopqrsuvACDEFHILMNOPQRSU14580' | head -c "24")
+
+docker pull runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04
+
+_messagePlain_request 'request: paste ->'
+echo > ./._run-factory_runpod
+_request_paste_factory-prepare_finetune | tee -a ./._run-factory_runpod
+_request_paste_factory-install_ubiquitous_bash | tee -a ./._run-factory_runpod
+_request_paste_factory-show_finetune | tee -a ./._run-factory_runpod
+_messagePlain_request 'request: JUPYTER_PASSWORD: '"$JUPYTER_PASSWORD"
+docker inspect --format='{{json .Config.Entrypoint}}' runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04 | jq -r '.[]' | tee -a ./._run-factory_runpod
+#echo 'bash -i' >> ./._run-factory_runpod
+_messagePlain_request 'request: <- paste'
+
+
+# ###
+
+
+! type _getAbsoluteLocation > /dev/null 2>&1 && exit 1
+
+#docker image inspect runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04 --format '{{json .Config.Entrypoint}} {{json .Config.Cmd}}'
+
+dockerRunArgs=( bash /workspace/project/._run-factory_runpod )
+[[ ! -e ./._run-factory_runpod ]] && dockerRunArgs=( bash )
+
+if _if_cygwin
+then
+#--privileged
+#--ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+#-v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads
+docker run --shm-size=20g --name runpod-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_knowledgeDir":/knowledge -v "$factory_knowledge_distillDir":/knowledge_distill -v "$factory_projectDir":/workspace/project --rm -it runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04 "${dockerRunArgs[@]}"
+fi
+if ! _if_cygwin
+then
+# WARNING: May be untested.
+docker run --shm-size=20g --name runpod-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v '/home/user/___quick':/q -v '/home/user/core':/core -v "/home/user"'/Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_projectDir":/workspace/project --rm -it runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04 "${dockerRunArgs[@]}"
+fi
+
+# ###
+# PASTE
+# ###
+
+
+
+}
+
+
+
+
+_factory_runpod-heavy() {
+
+! type _set_factory_dir > /dev/null 2>&1 && exit 1
+_set_factory_dir
+
+
+
+# ###
+# PASTE
+# ###
+
+! docker images | tail -n+2 | grep '^runpod-pytorch-heavy' > /dev/null 2>&1 && exit
+
+[[ JUPYTER_PASSWORD == "" ]] && export JUPYTER_PASSWORD=$(openssl rand 768 | base64 | tr -dc 'a-zA-Z0-9' | tr -d 'acdefhilmnopqrsuvACDEFHILMNOPQRSU14580' | head -c "24")
+
+docker pull runpod-pytorch-heavy
+
+_messagePlain_request 'request: paste ->'
+echo > ./._run-factory_runpod
+_request_paste_factory-prepare_finetune | tee -a ./._run-factory_runpod
+_request_paste_factory-install_ubiquitous_bash | tee -a ./._run-factory_runpod
+_request_paste_factory-show_finetune | tee -a ./._run-factory_runpod
+_messagePlain_request 'request: JUPYTER_PASSWORD: '"$JUPYTER_PASSWORD"
+docker inspect --format='{{json .Config.Entrypoint}}' runpod-pytorch-heavy | jq -r '.[]' | tee -a ./._run-factory_runpod
+#echo 'bash -i' >> ./._run-factory_runpod
+_messagePlain_request 'request: <- paste'
+
+
+# ###
+
+
+! type _getAbsoluteLocation > /dev/null 2>&1 && exit 1
+
+#docker image inspect runpod-pytorch-heavy --format '{{json .Config.Entrypoint}} {{json .Config.Cmd}}'
+
+dockerRunArgs=( bash /workspace/project/._run-factory_runpod )
+[[ ! -e ./._run-factory_runpod ]] && dockerRunArgs=( bash )
+
+if _if_cygwin
+then
+#--privileged
+#--ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+#-v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads
+docker run --shm-size=20g --name runpod-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_knowledgeDir":/knowledge -v "$factory_knowledge_distillDir":/knowledge_distill -v "$factory_projectDir":/workspace/project --rm -it runpod-pytorch-heavy "${dockerRunArgs[@]}"
+fi
+if ! _if_cygwin
+then
+# WARNING: May be untested.
+docker run --shm-size=20g --name runpod-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v '/home/user/___quick':/q -v '/home/user/core':/core -v "/home/user"'/Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_projectDir":/workspace/project --rm -it runpod-pytorch-heavy "${dockerRunArgs[@]}"
+fi
+
+# ###
+# PASTE
+# ###
+
+
+
+}
+_factory_runpod() {
+    _factory_runpod-heavy
+}
+
+
+
+# https://hub.docker.com/u/langchain
 
 
 
@@ -17531,6 +18668,8 @@ doNotMatch
 find /model -maxdepth 1 | head -n 65
 find /output -maxdepth 1 | head
 find /dataset -maxdepth 1 | head -n 65
+find /knowledge -maxdepth 1 | head -n 65
+find /knowledge_distill -maxdepth 1 | head -n 65
 find /workspace/project -maxdepth 1 | head -n 65
 
 nvidia-smi
@@ -17749,6 +18888,95 @@ _format_bash-continueText() {
 
 
 
+
+
+_format_trial() {
+    local current_objectName="$1"
+    [[ -z "$current_objectName" ]] && current_objectName=$(basename "$PWD")
+
+    local current_directory="$2"
+    [[ -z "$current_directory" ]] && current_directory="$PWD"
+
+    local dataset="$current_directory"
+    local output_file="${current_directory}/"$objectName"_finetuning-promptResponse-instruct.jsonl"
+
+    rm -f "$output_file" >/dev/null 2>&1
+
+    local segment_file prompt_file response_file prompt completion json_line
+
+    while IFS= read -r -d '' segment_file; do
+        response_file="$segment_file"
+
+        prompt_file=$(echo "$response_file" | sed 's/response-solution-llama-3.1-405b-instruct\.md$/prompt-problem.md/')
+        
+        if [[ ! -e "$response_file" ]] || [[ ! -e "$prompt_file" ]]
+        then
+            ( _messagePlain_bad "bad: FAIL: missing: prompt/response files: $segment_file" >&2 ) > /dev/null
+            ( _messageError 'FAIL' >&2 ) > /dev/null
+            _stop 1
+            exit 1
+            return 1
+        fi
+
+        prompt=$(<"$prompt_file")
+        completion=$(<"$response_file")
+
+        # Now construct the correct "messages" object as required by OpenAI
+        #--arg system_content "You are an expert assistant that generates exemplary bash scripts according to best practices."
+        json_line=$(jq -cn \
+            --arg user_content "$prompt" \
+            --arg assistant_content "$completion" \
+            --arg system_content "" \
+            '{messages: [
+                {role: "system", content: $system_content},
+                {role: "user", content: $user_content},
+                {role: "assistant", content: $assistant_content}
+            ]}')
+
+        echo "$json_line" >> "$output_file"
+
+    done < <(find "$dataset" -type f -iname 'response-solution-llama-3.1-405b-instruct.md' -print0 | sort -zV)
+
+    echo "JSONL file created successfully: $output_file" >&2
+
+
+    output_file="${current_directory}/"$objectName"_finetuning-promptResponse-reasoning.jsonl"
+
+    while IFS= read -r -d '' segment_file; do
+        response_file="$segment_file"
+
+        prompt_file=$(echo "$response_file" | sed 's/response-solution-deepseek-r1-671b-reasoning\.md$/prompt-problem.md/')
+        
+        if [[ ! -e "$response_file" ]] || [[ ! -e "$prompt_file" ]]
+        then
+            ( _messagePlain_bad "bad: FAIL: missing: prompt/response files: $segment_file" >&2 ) > /dev/null
+            ( _messageError 'FAIL' >&2 ) > /dev/null
+            _stop 1
+            exit 1
+            return 1
+        fi
+
+        prompt=$(<"$prompt_file")
+        completion=$(<"$response_file")
+
+        # Now construct the correct "messages" object as required by OpenAI
+        #--arg system_content "You are an expert assistant that generates exemplary bash scripts according to best practices."
+        json_line=$(jq -cn \
+            --arg user_content "$prompt" \
+            --arg assistant_content "$completion" \
+            --arg system_content "" \
+            '{messages: [
+                {role: "system", content: $system_content},
+                {role: "user", content: $user_content},
+                {role: "assistant", content: $assistant_content}
+            ]}')
+
+        echo "$json_line" >> "$output_file"
+
+    done < <(find "$dataset" -type f -iname 'response-solution-deepseek-r1-671b-reasoning.md' -print0 | sort -zV)
+
+    echo "JSONL file created successfully: $output_file" >&2
+}
 
 
 # All prompts to generate AI training datasets used, if any, only outputs from those models with open licenses, such as the Llama 3.1 licensing, or the DeepSeek R1 MIT license, and thus, there can be no questions of encumberance of resulting datasets for training Llama 3.1, etc, AI models.
@@ -18195,6 +19423,7 @@ _dataset_bash_from_lines() {
     current_dataset_functionBounds+=( "$(( current_dataset_totalLines + 1 ))" )
 }
 
+#./ubiquitous_bash.sh _dataset_bash_from_lines-echo ./metaengine/typical/typical_metaengine_buffer.sh
 #./ubiquitous_bash.sh _dataset_bash_from_lines-echo | sed 's/\ /\n/g' | wc -l
 _dataset_bash_from_lines-echo() {
     _set_corpus_default "$1"
@@ -18592,6 +19821,10 @@ _here_semanticAssist-askGibberish() {
 
 Should be AI autogenerated keywords here, intended to summarize concept from code for keyword search. Are these valid keywords, or did the AI LLM model apparently begin outputting gibberish?
 
+Keywords 'empty', 'blank', etc, for situations not applicable to search terms, may be valid.
+
+Contradictory keywords such as 'empty', 'blank', 'lack', etc, with 'terminal' and 'codeblock' are gibberish.
+
 Always err on the side of assuming the output is gibberish. Typos and misspellings are gibberish.
 
 If there is a phrase 'here are the keywords for the code', or similar, that is gibberish.
@@ -18706,7 +19939,7 @@ _format_distill_bash-promptResponse() {
 
         echo "$json_line" >> "$output_file"
 
-    done < <(find "$dataset" -maxdepth 1 -type f -iname '*prompt.md' -print0 | sort -zV)
+    done < <(find "$dataset" -type f -iname '*prompt.md' -print0 | sort -zV)
 
     echo "JSONL file created successfully: $output_file" >&2
 }
@@ -18716,7 +19949,11 @@ _format_distill_bash-promptResponse() {
 
 
 
-#export distill_projectDir=$(_getAbsoluteLocation ./_local/experiment) ; export distill_distillDir=$(_getAbsoluteLocation ./_local/experiment_distill) ; cp -f ./os/override/override_cygwin.sh ./_local/experiment/override_cygwin.sh ; ./ubiquitous_bash.sh _semanticAssist ./_local/experiment
+#export distill_projectDir=$(_getAbsoluteLocation ./_local/experiment) ; export distill_distillDir=$(_getAbsoluteLocation ./_local/experiment_distill) ; mkdir -p ./_local/experiment ; cp -f ./generic/findInfrastructure.sh ./_local/experiment/ ; ./ubiquitous_bash.sh _semanticAssist ./_local/experiment
+
+#export distill_projectDir=$(_getAbsoluteLocation ./_local/experiment) ; export distill_distillDir=$(_getAbsoluteLocation ./_local/experiment_distill) ; mkdir -p ./_local/experiment ; cp -f ./os/override/override_cygwin.sh ./_local/experiment/ ; ./ubiquitous_bash.sh _semanticAssist ./_local/experiment
+
+#export distill_projectDir=$(_getAbsoluteLocation ./_local/experiment) ; export distill_distillDir=$(_getAbsoluteLocation ./_local/experiment_distill) ; mkdir -p ./_local/experiment ; cp -f ./metaengine/typical/typical_metaengine_buffer.sh ./_local/experiment/ ; ./ubiquitous_bash.sh _semanticAssist ./_local/experiment
 
 _semanticAssist_bash_procedure() {
     [[ "$1" == "" ]] && return 0
@@ -18768,7 +20005,13 @@ _semanticAssist_bash_procedure() {
     local currentLineEnd_next
     local currentGibberish
     local currentIteration_gibberish
-    while ( [[ "$currentIteration" == "-1" ]] ) || ( [[ ${current_dataset_functionBounds[$currentIteration]} -lt "$current_dataset_totalLines" ]] && [[ "$currentIteration" -lt 999 ]] && [[ ${current_dataset_functionBounds[$currentIteration]} != "" ]] )
+    if [[ "${current_dataset_functionBounds[0]}" == "1" ]] # Skip iterating over 'currentLineBegin=1' case if the next iteration will also begin at 'currentLineBegin=1'.
+    then
+        let currentIteration++
+        let currentIterationNext++
+        let currentIterationNextNext++
+    fi
+    while ( [[ "$currentIteration" == "-1" ]] ) || ( [[ ${current_dataset_functionBounds[$currentIteration]} -lt "$current_dataset_totalLines" ]] && [[ "$currentIteration" -lt 30000 ]] && [[ ${current_dataset_functionBounds[$currentIteration]} != "" ]] ) # ( [[ "${current_dataset_functionBounds[0]}" == "1" ]] && [[ "$currentIteration" == 0 ]] )
     do
         currentLineBegin=$(( ${current_dataset_functionBounds[$currentIteration]} ))
         [[ "$currentIteration" -lt 0 ]] && currentLineBegin=1
@@ -18861,6 +20104,7 @@ _semanticAssist_bash_procedure() {
                 #( _messageError 'FAIL: gibberish: '"$1": "$currentLineBegin" >&2 ) > /dev/null
                 #return 1
                 #exit 1
+                _messagePlain_bad 'bad: gibberish: '"$1"': '"$currentLineBegin" >&2
                 rm -f "$safeTmp"/"$inputName"-"$currentFileID".keywords.txt > /dev/null 2>&1
                 echo > "$safeTmp"/"$inputName"-"$currentFileID".keywords.txt
                 currentGibberish="valid"
@@ -19037,6 +20281,8 @@ _semanticAssist_bash_procedure() {
 
 
 
+#./ubiquitous_bash.sh _semanticAssist
+
 
 # ATTENTION: Override with 'ops.sh' or similar if appropriate.
 #export ai_safety="guard"
@@ -19057,9 +20303,6 @@ _semanticAssist_bash-backend-lowLatency-special() {
 
     ##provider: { "order": ["SambaNova", "Fireworks", "Hyperbolic"]
     #jq -Rs '{ model: "meta-llama/llama-3.1-405b-instruct", provider: { "order": ["Lambda", "Fireworks"], "sort": "latency" }, messages: [{"role": "user", "content": .}] }' | curl -fsS --max-time 120 --keepalive-time 300 --compressed --tcp-fastopen --http2 -X POST https://openrouter.ai/api/v1/chat/completions -H "Content-Type: application/json" -H "Authorization: Bearer $OPENROUTER_API_KEY" --data-binary @- | jq -r '.choices[0].message.content'
-
-    ###provider: { "order": ["Lambda", "Fireworks"], "sort": "latency" }
-    ##jq -Rs '{ model: "meta-llama/llama-4-scout", provider: { "sort": "latency" }, messages: [{"role": "user", "content": .}] }' | curl -fsS --max-time 120 --keepalive-time 300 --compressed --tcp-fastopen --http2 -X POST https://openrouter.ai/api/v1/chat/completions -H "Content-Type: application/json" -H "Authorization: Bearer $OPENROUTER_API_KEY" --data-binary @- | jq -r '.choices[0].message.content'
 }
 
 # ATTENTION: Override with 'ops.sh' or similar if appropriate.
@@ -19111,7 +20354,8 @@ _semanticAssist_procedure_procedure() {
         export distill_projectDir="$scriptLocal"/knowledge/"$objectName"
         export distill_distillDir="$scriptLocal"/knowledge_distill/"$objectName"
 
-        [[ "$objectName" == "ubiquitous_bash" ]] && _knowledge-ubiquitous_bash
+        type _knowledge-"$objectName" > /dev/null 2>&1 && _knowledge-"$objectName"
+        #[[ "$objectName" == "ubiquitous_bash" ]] && _knowledge-ubiquitous_bash
         _safeRMR "$scriptLocal"/knowledge_distill/"$objectName"
     fi
     #[[ "$distill_distillDir" != "" ]] && [[ -e "$distill_distillDir" ]] && _safeRMR "$distill_distillDir"
@@ -21359,6 +22603,9 @@ _self_gitMad() {
 }
 # https://stackoverflow.com/questions/1580596/how-do-i-make-git-ignore-file-mode-chmod-changes
 _gitMad() {
+	local currentDirectory=$(_getAbsoluteLocation "$PWD")
+	_write_configure_git_safe_directory_if_admin_owned "$currentDirectory"
+
 	git config core.fileMode false
 	git submodule foreach git config core.fileMode false
 	git submodule foreach git submodule foreach git config core.fileMode false
@@ -21389,19 +22636,28 @@ _gitBest_detect_github_procedure() {
 		fi
 		
 		local currentSSHoutput
-		if ( [[ -e "$HOME"/.ssh/id_rsa ]] || [[ -e "$HOME"/.ssh/config ]] || ( [[ ! -e "$HOME"/.ssh/id_ed25519_sk ]] && [[ ! -e "$HOME"/.ssh/ecdsa-sk ]] ) ) && currentSSHoutput=$(ssh -o StrictHostKeyChecking=no -o Compression=yes -o ConnectionAttempts=3 -o ServerAliveInterval=6 -o ServerAliveCountMax=9 -o ConnectTimeout="$netTimeout" -o PubkeyAuthentication=yes -o PasswordAuthentication=no git@github.com 2>&1 ; true) && _safeEcho_newline "$currentSSHoutput" | grep 'successfully authenticated'
+		# CAUTION: Disabling this presumes "$HOME"/.ssh/config for GitHub (possibly through 'CoreAutoSSH') is now not necessary to support by default.
+		#  ATTENTION: Good assumption. GH_TOKEN/INPUT_GITHUB_TOKEN is now used by _gitBest within 'compendium' functions, etc, usually much safer and more convenient.
+		#   Strongly Discouraged: Override with ops.sh if necessary.
+		# || [[ -e "$HOME"/.ssh/config ]]
+		if ( [[ -e "$HOME"/.ssh/id_rsa ]] || ( [[ ! -e "$HOME"/.ssh/id_ed25519_sk ]] && [[ ! -e "$HOME"/.ssh/ecdsa-sk ]] ) ) && currentSSHoutput=$(ssh -o StrictHostKeyChecking=no -o Compression=yes -o ConnectionAttempts=3 -o ServerAliveInterval=6 -o ServerAliveCountMax=9 -o ConnectTimeout="$netTimeout" -o PubkeyAuthentication=yes -o PasswordAuthentication=no git@github.com 2>&1 ; true) && _safeEcho_newline "$currentSSHoutput" | grep 'successfully authenticated'
 		then
 			export current_gitBest_source_GitHub="github_ssh"
 			return
 		fi
 		_safeEcho_newline "$currentSSHoutput"
 		
-		#if _checkPort github.com 443
-		if wget -qO- https://github.com > /dev/null
-		then
-			export current_gitBest_source_GitHub="github_https"
-			return
-		fi
+		# Exceptionally rare cases of 'github.com' accessed from within GitHub Actions runner (most surprisingly) not responding have apparently happened.
+		local currentIteration
+		for currentIteration in $(seq 1 2)
+		do
+			#if _checkPort github.com 443
+			if wget -qO- https://github.com > /dev/null
+			then
+				export current_gitBest_source_GitHub="github_https"
+				return
+			fi
+		done
 		
 		
 		[[ "$current_gitBest_source_GitHub" == "" ]] && export current_gitBest_source_GitHub="FAIL"
@@ -21557,10 +22813,54 @@ _gitBest_sequence() {
 	
 	_messagePlain_nominal 'init: git'
 	
+	local currentExitStatus
 	git "$@"
+	currentExitStatus="$?"
+
+
+	export HOME="$realHome"
+	if _if_cygwin
+	then
+		if [ "$1" = "clone" ]
+		then
+			_messagePlain_nominal 'init: git safe directory'
+
+			# ATTRIBUTION-AI: ChatGPT 4.5-preview  2025-04-12  (partially)
+			local currentDirectory
+			local currentURL
+			local currentArg=""
+			local currentArg_previous=""
+			for currentArg in "$@"
+			do
+				# Ignore parameters:
+				#  begins with "-" dash
+				#  preceeded by parameter taking an argument, but no argument or "="
+				if [[ "$currentArg" != -* ]] && [[ "$currentArg" != "clone" ]] && [[ "$currentArg_previous" != "--template" ]] && [[ "$currentArg_previous" != "-o" ]] && [[ "$currentArg_previous" != "-b" ]] && [[ "$currentArg_previous" != "-u" ]] && [[ "$currentArg_previous" != "--reference" ]] && [[ "$currentArg_previous" != "--separate-git-dir" ]] && [[ "$currentArg_previous" != "--depth" ]] && [[ "$currentArg_previous" != "--jobs" ]] && [[ "$currentArg_previous" != "--filter" ]]
+				then
+					currentURL="$currentArg"
+					echo "$currentURL"
+					#break
+
+					[[ -e "$currentArg" ]] && currentDirectory="$currentArg"
+				fi
+				currentArg_previous="$currentArg"
+			done
+		fi
+		
+		[[ "$currentDirectory" == "" ]] && [[ "$currentURL" != "" ]] && currentDirectory=$(basename --suffix=".git" "$currentURL")
+		
+		if [[ -e "$currentDirectory" ]]
+		then
+			_messagePlain_probe 'exists: '"$currentDirectory"
+			if type _write_configure_git_safe_directory_if_admin_owned > /dev/null 2>&1
+			then
+				currentDirectory=$(_getAbsoluteLocation "$currentDirectory")
+				_write_configure_git_safe_directory_if_admin_owned "$currentDirectory"
+			fi
+		fi
+	fi
 	
-	
-	_stop "$?"
+	_stop "$currentExitStatus"
 }
 
 _gitBest() {
@@ -30651,12 +31951,12 @@ _setupUbiquitous_accessories_here-python_hook() {
 # ATTENTION: Without either 'exec(exec(open()))' or 'execfile()' , 'from ubcorerc_pythonrc import *' must take effect!
 # If 'exec(exec(open()))' is substituted for 'from ubcorerc_pythonrc import *' then copying home directory files independent of '.ubcore' 
 import os
-if os.path.exists("$ubcore_accessoriesFile_python"):
+if os.path.exists(r"$ubcore_accessoriesFile_python"):
 	import sys
 	import os
 	# https://stackoverflow.com/questions/2349991/how-to-import-other-python-files
-	sys.path.append(os.path.abspath("$ubcoreDir_accessories/python"))
-	from ubcorerc_pythonrc import *
+	sys.path.append(os.path.abspath(r"$ubcoreDir_accessories_python"))
+	from $ubcore_ubcorerc_pythonrc import *
 
 
 
@@ -30665,9 +31965,9 @@ if os.path.exists("$ubcore_accessoriesFile_python"):
 import sys
 # https://stackoverflow.com/questions/436198/what-is-an-alternative-to-execfile-in-python-3
 if sys.hexversion > 0x03000000:
-	exec('exec(open( "$ubcore_accessoriesFile_python_ubhome" ).read() )')
+	exec(r'exec(open( r"$ubcore_accessoriesFile_python_ubhome" ).read() )')
 else:
-	execfile("$ubcore_accessoriesFile_python_ubhome")
+	execfile(r"$ubcore_accessoriesFile_python_ubhome")
 
 
 
@@ -30681,9 +31981,11 @@ _setupUbiquitous_accessories_here-python_bashrc() {
 	cat << CZXWXcRMTo8EmM8i4d
 
 # Interactive bash shell will default to calling 'python3' while scripts invoking '#! /usr/bin/env python' or similar may still be given 'python2' equivalent.
-alias python=python3
+[[ "\$_PATH_pythonDir" == "" ]] && alias python=python3
 
-export PYTHONSTARTUP="$HOME"/.pythonrc
+[[ "\$_PATH_pythonDir" == "" ]] && [[ "\$_PYTHONSTARTUP" == "" ]] && export PYTHONSTARTUP="$HOME"/.pythonrc
+
+[[ "\$_PATH_pythonDir" != "" ]] && _set_msw_python_procedure
 
 CZXWXcRMTo8EmM8i4d
 }
@@ -30903,6 +32205,7 @@ _setupUbiquitous_accessories-python() {
 	
 	_setupUbiquitous_accessories_here-python > "$ubcore_accessoriesFile_python_ubhome"
 	
+	export ubcore_ubcorerc_pythonrc="ubcorerc_pythonrc"
 	
 	if ! grep ubcore "$ubHome"/.pythonrc > /dev/null 2>&1 && _messagePlain_probe 'pythonrc'
 	then
@@ -31179,27 +32482,37 @@ _installUbiquitous() {
 	local localFunctionEntryPWD
 	localFunctionEntryPWD="$PWD"
 	
-	cd "$ubcoreDir"
+	! cd "$ubcoreDir" && _messagePlain_bad 'bad: cd $ubcoreUBdir' && return 1
 	
-	cd "$ubcoreUBdir"
-	_messagePlain_nominal 'attempt: git pull'
+	! cd "$ubcoreUBdir" && _messagePlain_bad 'bad: cd $ubcoreUBdir' && return 1
+	_messagePlain_nominal 'attempt: git pull: '"$PWD"
 	if [[ "$nonet" != "true" ]] && type git > /dev/null 2>&1
 	then
 		_gitBest_detect
 		
-		local ub_gitPullStatus
-		#git pull
-		_gitBest pull
-		ub_gitPullStatus="$?"
-		#[[ "$ub_gitPullStatus" != 0 ]] && git pull && ub_gitPullStatus="$?"
-		[[ "$ub_gitPullStatus" != 0 ]] && _gitBest pull && ub_gitPullStatus="$?"
-		! cd "$localFunctionEntryPWD" && return 1
-		
+		# CAUTION: After calling 'ubcp-cygwin-portable-installer' during 'build_ubcp' job of GitHub Actions 'build.yml', or similar devops/CI, etc, '/home/root/.ubcore/ubiquitous_bash' is a subdirectory at 'C:\...\ubiquitous_bash\_local\ubcp\cygwin\home\root\.ubcore\ubiquitous_bash' or similar.
+		#  DANGER: This causes MSWindows native 'git' binaries to perceive a git repository '.git' subdirectory already exists at the parent directory 'C:\...\ubiquitous_bash' , catastrophically causing 'git pull' to succeed, without populating the '/home/root/.ubcore/ubiquitous_bash' directory with 'ubiquitous_bash.sh' .
+		# Preventing that scenario, detect whether a '.git' subdirectory exists at "$ubcoreUBdir"/.git , which should also be the same as './.git' .
+		if [[ -e "$ubcoreUBdir"/.git ]] && [[ -e ./.git ]]
+		then
+			local ub_gitPullStatus
+			#git pull
+			_gitBest pull
+			ub_gitPullStatus="$?"
+			#[[ "$ub_gitPullStatus" != 0 ]] && git pull && ub_gitPullStatus="$?"
+			if [[ "$ub_gitPullStatus" != 0 ]]
+			then
+				_gitBest pull
+				ub_gitPullStatus="$?"
+			fi
+			! cd "$localFunctionEntryPWD" && return 1
+
 		[[ "$ub_gitPullStatus" == "0" ]] && _messagePlain_good 'pass: git pull' && cd "$localFunctionEntryPWD" && return 0
+		fi
 	fi
-	_messagePlain_warn 'fail: git pull'
+	_messagePlain_warn 'fail: git pull: '"$PWD"
 	
-	cd "$ubcoreDir"
+	! cd "$ubcoreDir" && _messagePlain_bad 'bad: cd $ubcoreDir' && return 1
 	_messagePlain_nominal 'attempt: git clone'
 	[[ "$nonet" != "true" ]] && type git > /dev/null 2>&1 && [[ ! -e ".git" ]] && [[ ! -e "$ubcoreUBdir"/.git ]] && _gitClone_ubiquitous && _messagePlain_good 'pass: git clone' && return 0
 	[[ "$nonet" != "true" ]] && type git > /dev/null 2>&1 && [[ ! -e ".git" ]] && [[ ! -e "$ubcoreUBdir"/.git ]] && _gitClone_ubiquitous && _messagePlain_good 'pass: git clone' && return 0
@@ -31248,6 +32561,7 @@ _installUbiquitous() {
 
 _setupUbiquitous() {
 	_messageNormal "init: setupUbiquitous"
+	export ub_under_setupUbiquitous="true"
 	
 	if _if_cygwin
 	then
@@ -31267,7 +32581,7 @@ _setupUbiquitous() {
 	export ubcoreFile="$ubcoreDir"/.ubcorerc
 	
 	export ubcoreDir_accessories="$ubHome"/.ubcore/accessories
-	
+	export ubcoreDir_accessories_python="$ubcoreDir_accessories"/python
 	
 	# WARNING: Despite the name, do NOT point this to 'ubcore.sh' or similar. Full set of functions are expected from this file by some use cases!
 	export ubcoreUBdir="$ubcoreDir"/ubiquitous_bash
@@ -32592,6 +33906,13 @@ export tmpSelf=""
 # ATTENTION: CAUTION: Should only be used by a single unusual Cygwin override. Must be reset if used for any other purpose.
 #export descriptiveSelf=""
 
+
+# ATTENTION: Set 'dumbpath_prefix' within functions, with '_prog/core.sh' , 'ops.sh' , or similar, etc.
+# WARNING: Any prefix will break '8.3' compatibility (usually don't care, but could affect DosBox, etc).
+unset dumbpath_prefix
+
+
+
 #####Global variables.
 #Fixed unique identifier for ubiquitous bash created global resources, such as bootdisc images to be automaticaly mounted by guests. Should NEVER be changed.
 export ubiquitiousBashIDnano=uk4u
@@ -32663,9 +33984,9 @@ _get_ub_globalVars_sessionDerived() {
 
 export lowsessionid=$(echo -n "$sessionid" | tr A-Z a-z )
 
-# ATTENTION: CAUTION: Unusual Cygwin override to accommodate MSW network drive ( at least when provided by '_userVBox' ) !
 if [[ "$scriptAbsoluteFolder" == '/cygdrive/'* ]] && [[ -e /cygdrive ]] && uname -a | grep -i cygwin > /dev/null 2>&1 && [[ "$scriptAbsoluteFolder" != '/cygdrive/c'* ]] && [[ "$scriptAbsoluteFolder" != '/cygdrive/C'* ]]
 then
+	# ATTENTION: CAUTION: Unusual Cygwin override to accommodate MSW network drive ( at least when provided by '_userVBox' ) !
 	if [[ "$tmpSelf" == "" ]]
 	then
 		
@@ -32686,6 +34007,13 @@ then
 		true
 		
 	fi
+
+	#_override_msw_git
+	type _override_msw_git_CEILING > /dev/null 2>&1 && _override_msw_git_CEILING
+	#if [[ "$1" != "_setupUbiquitous" ]] && [[ "$ub_under_setupUbiquitous" != "true" ]] && type _write_configure_git_safe_directory_if_admin_owned > /dev/null 2>&1
+	#then
+		_write_configure_git_safe_directory_if_admin_owned "$scriptAbsoluteFolder"
+	#fi
 elif uname -a | grep -i 'microsoft' > /dev/null 2>&1 && uname -a | grep -i 'WSL2' > /dev/null 2>&1
 then
 	if [[ "$tmpSelf" == "" ]]
@@ -32756,7 +34084,22 @@ then
 	fi
 fi
 
-#Essentially temporary tokens which may need to be reused. 
+if type cygpath > /dev/null 2>&1
+then
+    export scriptAbsoluteLocation_msw=$(cygpath -w "$scriptAbsoluteLocation")
+    export scriptAbsoluteFolder_msw=$(cygpath -w "$scriptAbsoluteFolder")
+
+	export scriptLocal_msw=$(cygpath -w "$scriptLocal")
+    export scriptLib_msw=$(cygpath -w "$scriptLib")
+    
+	export scriptCall_bash="$scriptAbsoluteFolder"'/_bash.bat'
+    export scriptCall_bash_msw="$scriptAbsoluteFolder_msw"'\_bash.bat'
+	export scriptCall_bin="$scriptAbsoluteFolder"/_bin.bat
+    export scriptCall_bin_msw="$scriptAbsoluteFolder_msw"'\_bin.bat'
+fi
+
+#Essentially temporary tokens which may need to be reused.
+# No, NOT AI tokens, predates widespread usage of that term.
 export scriptTokens="$scriptLocal"/.tokens
 
 #Reboot Detection Token Storage
@@ -36442,6 +37785,8 @@ _stop() {
 			
 		rm -f "$currentAxelTmpFile"* > /dev/null 2>&1
 	fi
+
+	[[ -e "$scriptLocal"/python_msw.lock ]] && [[ $(head -c $(echo -n "$sessionid" | wc -c | tr -dc '0-9') "$scriptLocal"/python_msw.lock 2> /dev/null ) == "$sessionid" ]] && rm -f "$scriptLocal"/python_msw.lock > /dev/null 2>&1
 	
 	_stop_stty_echo
 	if [[ "$1" != "" ]]
@@ -39444,48 +40789,58 @@ import os
 #os.system("$HOME/.ubcore/ubiquitous_bash/ubcore.sh _bash -i ")
 #currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
 #print(['ubiquitous_bash.sh', '_bash'] + currentArguments)
-def _bash(currentArguments = ['-i'], currentPrint = False, current_ubiquitous_bash = "ubiquitous_bash.sh"):
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists(os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh"):
-			current_ubiquitous_bash = (os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh")
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"):
-			current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists("/cygdrive/c/core/infrastructure/lean/lean.sh"):
-			current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/lean/lean.sh"
-	currentArguments = ['-i'] if currentArguments == '-i' else currentArguments
-	if isinstance(currentArguments, str):
-		# WARNING: Discouraged.
-		if not currentArguments == '-i':
-			currentProc = subprocess.Popen(current_ubiquitous_bash + " _bash " + currentArguments, stdout=subprocess.PIPE, universal_newlines=True, shell=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-			currentOut = currentOut.rstrip('\n')
-			if currentPrint == True:
-				print(currentOut)
-				return (currentOut), currentProc.returncode
-		else:
-			currentProc = subprocess.Popen(current_ubiquitous_bash + " _bash " + currentArguments, universal_newlines=True, shell=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-		return (currentOut), currentProc.returncode
-	else:
-		if not currentArguments == ['-i']:
-			currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
-			currentProc = subprocess.Popen([current_ubiquitous_bash, '_bash'] + currentArguments, stdout=subprocess.PIPE, universal_newlines=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-			currentOut = currentOut.rstrip('\n')
-			if currentPrint == True:
-				print(currentOut)
-				return (currentOut), currentProc.returncode
-		else:
-			currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
-			currentProc = subprocess.Popen([current_ubiquitous_bash, '_bash'] + currentArguments, universal_newlines=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-		return (currentOut), currentProc.returncode
+# ATTENTION: WARNING: Enjoy this python code. The '_bash' and '_bin' function are quite possibly, even probably, and for actual reasons for every line of code being annoying, the worst python code that will ever be written by people. In plainer language, only mess with parts of this code for which you have stopped to fully understand exactly why every negation, if/else, return, print, etc, is in the exact order that it is.
+def _bash(currentArguments = ['-i'], currentPrint = False, current_ubiquitous_bash = "ubiquitous_bash.sh", interactive=True):
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ.get("scriptCall_bash_msw", "").replace('\\', '/')):
+            current_ubiquitous_bash = os.environ.get("scriptCall_bash_msw", "").replace('\\', '/')
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ.get("scriptAbsoluteLocation", "")):
+            current_ubiquitous_bash = os.environ.get("scriptAbsoluteLocation", "")
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh"):
+            current_ubiquitous_bash = (os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh")
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"):
+            current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/lean.sh"):
+            current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/lean.sh"
+    currentArguments = ['-i'] if currentArguments == '-i' else currentArguments
+    if isinstance(currentArguments, str):
+    # WARNING: Discouraged.
+        if not ( ( currentArguments == '-i' ) or ( currentArguments == '' ) or ( interactive == True ) ):
+            # ATTENTION: WARNING: Use of 'stdout=subprocess.PIPE' is NOT compatible with interactive shell!
+            currentProc = subprocess.Popen(current_ubiquitous_bash + " _bash " + currentArguments, stdout=subprocess.PIPE, universal_newlines=True, shell=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+            currentOut = currentOut.rstrip('\n')
+            if currentPrint == True:
+                print(currentOut)
+                return (currentOut), currentProc.returncode
+        else:
+            currentProc = subprocess.Popen(current_ubiquitous_bash + " _bash " + currentArguments, universal_newlines=True, shell=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+        return (currentOut), currentProc.returncode
+    else:
+        if not ( ( currentArguments == ['-i'] ) or ( currentArguments == [''] ) or ( interactive == True ) ):
+            currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
+            # ATTENTION: WARNING: Use of 'stdout=subprocess.PIPE' is NOT compatible with interactive shell!
+            currentProc = subprocess.Popen([current_ubiquitous_bash, '_bash'] + currentArguments, stdout=subprocess.PIPE, universal_newlines=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+            currentOut = currentOut.rstrip('\n')
+            if currentPrint == True:
+                print(currentOut)
+                return (currentOut), currentProc.returncode
+        else:
+            if ( currentArguments == [''] ): currentArguments = ['-i']
+            currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
+            currentProc = subprocess.Popen([current_ubiquitous_bash, '_bash'] + currentArguments, universal_newlines=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+        return (currentOut), currentProc.returncode
 
 
 
@@ -39509,48 +40864,61 @@ import os
 #_bin('_bash')
 #print( _bin('_false', False)[1] )
 #_bin("_getScriptAbsoluteLocation", True, os.path.expanduser("~/core/infrastructure/ubiquitous_bash/ubiquitous_bash.sh"))
-def _bin(currentArguments = [''], currentPrint = False, current_ubiquitous_bash = "ubiquitous_bash.sh"):
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists(os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh"):
-			current_ubiquitous_bash = (os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh")
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"):
-			current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"
-	if current_ubiquitous_bash == "ubiquitous_bash.sh":
-		if os.path.exists("/cygdrive/c/core/infrastructure/lean/lean.sh"):
-			current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/lean/lean.sh"
-	currentArguments = [''] if currentArguments == '' else currentArguments
-	if isinstance(currentArguments, str):
-		# WARNING: Discouraged.
-		if not ( ( currentArguments == '/bin/bash -i' ) or ( currentArguments == '/bin/bash' ) ):
-			currentProc = subprocess.Popen(current_ubiquitous_bash + " _bin " + currentArguments, stdout=subprocess.PIPE, universal_newlines=True, shell=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-			currentOut = currentOut.rstrip('\n')
-			if currentPrint == True:
-				print(currentOut)
-				return (currentOut), currentProc.returncode
-		else:
-			currentProc = subprocess.Popen(current_ubiquitous_bash + " _bin " + currentArguments, universal_newlines=True, shell=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-		return (currentOut), currentProc.returncode
-	else:
-		if not (  ( currentArguments == ['/bin/bash', '-i'] ) or ( currentArguments == ['/bin/bash'] ) or ( currentArguments == ['_qalculate', ''] ) or ( currentArguments == ['_qalculate'] ) or ( currentArguments == ['_octave', ''] ) or ( currentArguments == ['_octave'] )  ):
-			currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
-			currentProc = subprocess.Popen([current_ubiquitous_bash, '_bin'] + currentArguments, stdout=subprocess.PIPE, universal_newlines=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-			currentOut = currentOut.rstrip('\n')
-			if currentPrint == True:
-				print(currentOut)
-				return (currentOut), currentProc.returncode
-		else:
-			currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
-			currentProc = subprocess.Popen([current_ubiquitous_bash, '_bin'] + currentArguments, universal_newlines=True)
-			(currentOut, currentErr) = currentProc.communicate()
-			currentProc.wait()
-		return (currentOut), currentProc.returncode
+# ATTENTION: WARNING: Enjoy this python code. The '_bash' and '_bin' function are quite possibly, even probably, and for actual reasons for every line of code being annoying, the worst python code that will ever be written by people. In plainer language, only mess with parts of this code for which you have stopped to fully understand exactly why every negation, if/else, return, print, etc, is in the exact order that it is.
+def _bin(currentArguments = [''], currentPrint = False, current_ubiquitous_bash = "ubiquitous_bash.sh", interactive=False):
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ.get("scriptCall_bash_msw", "").replace('\\', '/')):
+            current_ubiquitous_bash = os.environ.get("scriptCall_bash_msw", "").replace('\\', '/')
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ.get("scriptAbsoluteLocation", "")):
+            current_ubiquitous_bash = os.environ.get("scriptAbsoluteLocation", "")
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists(os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh"):
+            current_ubiquitous_bash = (os.environ['HOME'] + "/.ubcore/ubiquitous_bash/ubcore.sh")
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"):
+            current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/ubcore.sh"
+    if current_ubiquitous_bash == "ubiquitous_bash.sh":
+        if os.path.exists("/cygdrive/c/core/infrastructure/ubiquitous_bash/lean.sh"):
+            current_ubiquitous_bash = "/cygdrive/c/core/infrastructure/ubiquitous_bash/lean.sh"
+    # ATTENTION: Comment out next python line of code to test this code with an empty string.
+    #./lean.py "_bin('', currentPrint=True)"
+    currentArguments = [''] if currentArguments == '' else currentArguments
+    if isinstance(currentArguments, str):
+        # WARNING: Discouraged.
+        if not ( ( ( currentArguments == '/bin/bash -i' ) or ( currentArguments == '/bin/bash' ) or ( currentArguments == '_bash' ) or ( currentArguments == '' ) ) or ( interactive == True ) ) :
+            # ATTENTION: WARNING: Use of 'stdout=subprocess.PIPE' is NOT compatible with interactive shell!
+            currentProc = subprocess.Popen(current_ubiquitous_bash + " _bin " + currentArguments, stdout=subprocess.PIPE, universal_newlines=True, shell=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+            currentOut = currentOut.rstrip('\n')
+            if currentPrint == True:
+                print(currentOut)
+                return (currentOut), currentProc.returncode
+        else:
+            if ( currentArguments == '' ): currentArguments = '_bash'
+            currentProc = subprocess.Popen(current_ubiquitous_bash + " _bin " + currentArguments, universal_newlines=True, shell=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+        return (currentOut), currentProc.returncode
+    else:
+        if not ( ( ( currentArguments == ['/bin/bash', '-i'] ) or ( currentArguments == ['/bin/bash'] ) or ( currentArguments == ['_bash'] ) or ( currentArguments == ['_bash', '-i'] ) or ( currentArguments == ['_qalculate', ''] ) or ( currentArguments == ['_qalculate'] ) or ( currentArguments == ['_octave', ''] ) or ( currentArguments == ['_octave'] ) or ( currentArguments == [''] ) ) or ( interactive == True ) ):
+            currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
+            # ATTENTION: WARNING: Use of 'stdout=subprocess.PIPE' is NOT compatible with interactive shell!
+            currentProc = subprocess.Popen([current_ubiquitous_bash, '_bin'] + currentArguments, stdout=subprocess.PIPE, universal_newlines=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+            currentOut = currentOut.rstrip('\n')
+            if currentPrint == True:
+                print(currentOut)
+                return (currentOut), currentProc.returncode
+        else:
+            if ( currentArguments == [''] ): currentArguments = ['_bash']
+            currentArguments = [currentArguments] if isinstance(currentArguments, str) else currentArguments
+            currentProc = subprocess.Popen([current_ubiquitous_bash, '_bin'] + currentArguments, universal_newlines=True)
+            (currentOut, currentErr) = currentProc.communicate()
+            currentProc.wait()
+        return (currentOut), currentProc.returncode
 
 # ATTENTION: Only intended for indirect calls.
 # https://stackoverflow.com/questions/5067604/determine-function-name-from-within-that-function-without-using-traceback
@@ -39626,15 +40994,52 @@ def _octave(currentString = [], currentArguments = [], currentPrint = False, cur
 
 
 
-import readline # optional, will allow Up/Down/History in the console
+if sys.platform == 'win32':
+    try:
+        import pyreadline3 as readline
+    except ImportError:
+        readline = None
+else:
+    try:
+        import readline # optional, will allow Up/Down/History in the console
+    except ImportError:
+        readline = None
 import code
+
+# ATTRIBUTION-AI: ChatGPT o3  2025-04-19
+def _enable_readline():
+    """
+    Make sure arrow keys, history and TAB completion work in the
+    interpreter that we embed with code.InteractiveConsole.
+    """
+    try:
+        import readline, rlcompleter, atexit, os
+        # basic key bindings
+        readline.parse_and_bind('tab: complete')
+        # persistent history file
+        histfile = os.path.expanduser('~/.pyhistory')
+        if os.path.exists(histfile):
+            readline.read_history_file(histfile)
+        atexit.register(readline.write_history_file, histfile)
+    except ImportError:
+        # readline (or pyreadline on Windows) is not available
+        pass
+
+
+
+
 #_python()
 # https://stackoverflow.com/questions/5597836/embed-create-an-interactive-python-shell-inside-a-python-program
 def _python():
-	variables = globals().copy()
-	variables.update(locals())
-	shell = code.InteractiveConsole(variables)
-	shell.interact()
+    _enable_readline()
+    variables = globals().copy()
+    variables.update(locals())
+    shell = code.InteractiveConsole(variables)
+    # ATTRIBUTION-AI: ChatGPT 4.1  2025-04-19
+    if os.name == 'nt':  # True on Windows
+        print(" Press Ctrl+D twice (or Ctrl+Z then Enter) to exit this Python shell.")
+    # ATTRIBUTION: NOT AI !
+    shell.interact()
 
 
 
@@ -39643,33 +41048,117 @@ import os
 import socket
 import string
 import re
-#if sys.hexversion < 0x03060000:
-#	exit(1)
-# https://www.codementor.io/@arpitbhayani/personalize-your-python-prompt-13ts4kw6za
-# https://stackoverflow.com/questions/4271740/how-can-i-use-python-to-get-the-system-hostname
-# https://bugs.python.org/issue20359
-#os.environ['PWD']
-#os.path.expanduser(os.getcwd())
-#\033[0;35;47mpython-%d\033[0m
-#return "\033[92mIn [%d]:\033[0m " % (self.line)
-#return ">>> "
-#return "\033[1;94m|\033[91m#:\033[1;93m%s\033[1;92m@%s\033[1;94m)-%s(\033[1;95m\033[0;35;47mpython-%s\033[0m\033[1;94m)\033[1;96m|\n\033[1;94m|\033[1;97m[%s]\n\033[1;94m|\033[1;96m%d\033[1;94m) \033[1;96m>\033[0m " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
-#return "\033[1;94m|\033[91m#:\033[1;93m%s\033[1;92m@%s\033[1;94m)-%s(\033[1;95m\033[0;35;47mpython-%s\033[0m\033[1;94m)\033[1;96m|\n\033[1;94m|\033[1;97m[%s]\n\033[1;94m|%d\033[1;94m) \033[1;96m>\033[0m " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
-#os.environ['USER']
-#os.getenv('USER','root')
-class ubPythonPS1(object):
-	def __init__(self):
-		self.line = 0
 
-	def __str__(self):
-		self.line += 1
-		if self.line == 1:
-			return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;94m\x02|\x01\033[1;97m\x02[%s]\n\x01\033[1;94m\x02|\x01\033[1;96m\x02%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
-		else:
-			return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;94m\x02|\x01\033[1;97m\x02[%s]\n\x01\033[1;94m\x02|%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+# ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-18  (partially)
+# Determine if running on Windows
+is_windows = os.name == 'nt'
 
-sys.ps1 = ubPythonPS1()
-sys.ps2 = "\x01\033[0;96m\x02|...\x01\033[0m\x02 "
+# ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-18  (partially)
+# Attempt to import colorama if on Windows
+use_colorama = False
+if is_windows:
+    try:
+        from colorama import init, Fore, Back, Style
+        init(autoreset=True)
+        use_colorama = True
+    except ImportError:
+        pass  # Silently proceed without colorama if import fails
+
+# Color definitions (use ANSI if not on Windows or colorama is not used)
+if use_colorama:
+    # ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-18  (partially)  ( also the preceeding line  if use_colorama:  )
+    class ubPythonPS1(object):
+        def __init__(self):
+            self.line = 0
+
+        def __str__(self):
+            self.line += 1
+            user = os.getenv('USER', 'root')
+            hostname = socket.gethostname()
+            cloud_net_name = os.environ.get('prompt_cloudNetName', '')
+            #py_version = f"v{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+            ## ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-19
+            #py_version = f"v{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}" if not os.getenv('VIRTUAL_ENV_PROMPT') else os.getenv('VIRTUAL_ENV_PROMPT', '')
+            # ATTRIBUTION-AI: ChatGPT o3  2025-04-19
+            py_version = os.getenv("VIRTUAL_ENV_PROMPT") or f"Python-v{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+            cwd = os.path.expanduser(os.getcwd())
+
+            home_dir = os.environ.get('HOME', os.environ.get('USERPROFILE', ''))
+            if home_dir:
+                cwd = re.sub(f'^{re.escape(home_dir)}', '~', cwd)
+
+            # Color definitions (matched to ANSI colors)
+            blue = Fore.BLUE
+            red = Fore.RED
+            green = Fore.GREEN  # Hostname color
+            yellow = Fore.YELLOW
+            magenta = Fore.MAGENTA  # Python version color
+            cyan = Fore.CYAN
+            white = Fore.WHITE
+            reset = Style.RESET_ALL
+            bg_white = Back.WHITE
+
+            if self.line == 1:
+                prompt = (
+                    f"{blue}|{red}#{red}:{yellow}{user}{green}@{green}{hostname}{blue})-{cloud_net_name}({magenta}{bg_white}{py_version}{reset}{blue}){cyan}|\n"
+                    #f"{blue}|{white}[{cwd}]\n"
+                    f"{white}{cwd}\n"
+                    f"{blue}|{cyan}{self.line}{blue}) {cyan}> {reset}"
+                )
+            else:
+                prompt = (
+                    f"{blue}|{red}#{red}:{yellow}{user}{green}@{green}{hostname}{blue})-{cloud_net_name}({magenta}{bg_white}{py_version}{reset}{blue}){cyan}|\n"
+                    #f"{blue}|{white}[{cwd}]\n"
+                    f"{white}{cwd}\n"
+                    f"{blue}|{blue}{self.line}{blue}) {cyan}> {reset}"
+                )
+            return prompt
+
+    sys.ps1 = ubPythonPS1()
+    sys.ps2 = f"{Fore.CYAN}|...{Style.RESET_ALL} "
+else:
+    # ATTRIBUTION: NOT AI !
+    #if sys.hexversion < 0x03060000:
+    #	exit(1)
+    # https://www.codementor.io/@arpitbhayani/personalize-your-python-prompt-13ts4kw6za
+    # https://stackoverflow.com/questions/4271740/how-can-i-use-python-to-get-the-system-hostname
+    # https://bugs.python.org/issue20359
+    #os.environ['PWD']
+    #os.path.expanduser(os.getcwd())
+    #\033[0;35;47mpython-%d\033[0m
+    #return "\033[92mIn [%d]:\033[0m " % (self.line)
+    #return ">>> "
+    #return "\033[1;94m|\033[91m#:\033[1;93m%s\033[1;92m@%s\033[1;94m)-%s(\033[1;95m\033[0;35;47mpython-%s\033[0m\033[1;94m)\033[1;96m|\n\033[1;94m|\033[1;97m[%s]\n\033[1;94m|\033[1;96m%d\033[1;94m) \033[1;96m>\033[0m " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+    #return "\033[1;94m|\033[91m#:\033[1;93m%s\033[1;92m@%s\033[1;94m)-%s(\033[1;95m\033[0;35;47mpython-%s\033[0m\033[1;94m)\033[1;96m|\n\033[1;94m|\033[1;97m[%s]\n\033[1;94m|%d\033[1;94m) \033[1;96m>\033[0m " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+    #os.environ['USER']
+    #os.getenv('USER','root')
+    class ubPythonPS1(object):
+        def __init__(self):
+            self.line = 0
+
+        def __str__(self):
+            self.line += 1
+            if self.line == 1:
+                #return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;94m\x02|\x01\033[1;97m\x02[%s]\n\x01\033[1;94m\x02|\x01\033[1;96m\x02%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+                #return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;97m\x02%s\n\x01\033[1;94m\x02|\x01\033[1;96m\x02%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+                # ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-19
+                return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;97m\x02%s\n\x01\033[1;94m\x02|\x01\033[1;96m\x02%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion) if 'VIRTUAL_ENV_PROMPT' not in os.environ or not os.environ['VIRTUAL_ENV_PROMPT'] else os.environ['VIRTUAL_ENV_PROMPT'], re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+            else:
+                #return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;94m\x02|\x01\033[1;97m\x02[%s]\n\x01\033[1;94m\x02|%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+                #return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;97m\x02%s\n\x01\033[1;94m\x02|%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion), re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+                # ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-19
+                return "\x01\033[1;94m\x02|\x01\033[91m\x02#:\x01\033[1;93m\x02%s\x01\033[1;92m\x02@%s\x01\033[1;94m\x02)-%s(\x01\033[1;95m\x02\x01\033[0;35;47m\x02python-%s\x01\033[0m\x02\x01\033[1;94m\x02)\x01\033[1;96m\x02|\n\x01\033[1;97m\x02%s\n\x01\033[1;94m\x02|%d\x01\033[1;94m\x02) \x01\033[1;96m\x02>\x01\033[0m\x02 " % (os.getenv('USER','root'), socket.gethostname(), os.environ.get('prompt_cloudNetName', ''), hex(sys.hexversion) if 'VIRTUAL_ENV_PROMPT' not in os.environ or not os.environ['VIRTUAL_ENV_PROMPT'] else os.environ['VIRTUAL_ENV_PROMPT'], re.sub('^%s' % os.environ['HOME'], '~', os.path.expanduser(os.getcwd()) ), self.line)
+
+    sys.ps1 = ubPythonPS1()
+    sys.ps2 = "\x01\033[0;96m\x02|...\x01\033[0m\x02 "
+
+
+# ATTRIBUTION-AI: OpRt_.nvidia/llama-3.1-nemotron-ultra-253b-v1:free  2025-04-18 (only the next line  if is_windows and not use_colorama:  )
+if is_windows and not use_colorama:
+    # ATTRIBUTION: NOT AI !
+    # https://www.codementor.io/@arpitbhayani/personalize-your-python-prompt-13ts4kw6za
+    sys.ps1 = '>>> '
+    sys.ps2 = '... '
 
 #_python()
 
@@ -39943,6 +41432,12 @@ fi
 # DANGER: Implemented to prevent 'compile.sh' from attempting to run functions from 'ops.sh'. No other valid use currently known or anticipated!
 if [[ "$ub_ops_disable" != 'true' ]]
 then
+	# WARNING: CAUTION: Use sparingly and carefully . Allows a user to globally override functions for all 'ubiquitous_bash' scripts, projects, etc.
+	if [[ -e "$HOME"/_bashrc ]]
+	then
+		. "$HOME"/_bashrc
+	fi
+	
 	#Override functions with external definitions from a separate file if available.
 	#if [[ -e "./ops" ]]
 	#then
@@ -40056,12 +41551,33 @@ _wrap() {
 
 #Wrapper function to launch arbitrary commands within the ubiquitous_bash environment, including its PATH with scriptBin.
 _bin() {
+	# Less esoteric than calling '_bash _bash', but calling '_bin _bin' is still not useful, and filtered out for Python scripts which may call either 'ubiquitous_bash.sh' or '_bash.bat' interchangeably.
+	#  CAUTION: Shifting redundant '_bash' parameters is necessary for some Python scripts.
+	if [[ "$1" == ${FUNCNAME[0]} ]] && [[ "$2" == ${FUNCNAME[0]} ]]
+	then
+		shift
+		shift
+	else
+		[[ "$1" == ${FUNCNAME[0]} ]] && shift
+	fi
+
 	_safe_declare_uid
 	
 	"$@"
 }
 #Mostly intended to launch bash prompt for MSW/Cygwin users.
 _bash() {
+	# CAUTION: NEVER call _bash _bash , etc . This is different from calling '_bash "$scriptAbsoluteLocation" _bash', or '_bash -c bash -i' (not that those are known workable or useful either), cannot possibly provide any useful functionality (since 'bash' called by '_bash' is in the same environment), will only cause issues for no benefit, so don't.
+	# ATTENTION: In practice, this can happen incidentally, due to calling '_bash.bat' instead of 'ubiquitous_bash.sh' to call '_bash' function, since MSW would not be able to run 'ubiquitous_bash.sh' without an anchor batch script properly calling Cygwin bash.exe . Python scripts which may call either 'ubiquitous_bash.sh' or '_bash.bat' interchangeably benefit from this, because the '_bash' parameter does not need to change depending on Native/MSW or UNIX/Linux. Since there is no useful purpose to calling '_bash _bash', etc, simply always dismissing the redundant '_bash' parameter is reasonable.
+	#  CAUTION: Shifting redundant '_bash' parameters is necessary for some Python scripts.
+	if [[ "$1" == "_bash" ]] && [[ "$2" == "_bash" ]]
+	then
+		shift
+		shift
+	else
+		[[ "$1" == "_bash" ]] && shift
+	fi
+
 	_safe_declare_uid
 	
 	local currentIsCygwin

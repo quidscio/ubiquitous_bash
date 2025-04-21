@@ -240,12 +240,12 @@ _setupUbiquitous_accessories_here-python_hook() {
 # ATTENTION: Without either 'exec(exec(open()))' or 'execfile()' , 'from ubcorerc_pythonrc import *' must take effect!
 # If 'exec(exec(open()))' is substituted for 'from ubcorerc_pythonrc import *' then copying home directory files independent of '.ubcore' 
 import os
-if os.path.exists("$ubcore_accessoriesFile_python"):
+if os.path.exists(r"$ubcore_accessoriesFile_python"):
 	import sys
 	import os
 	# https://stackoverflow.com/questions/2349991/how-to-import-other-python-files
-	sys.path.append(os.path.abspath("$ubcoreDir_accessories/python"))
-	from ubcorerc_pythonrc import *
+	sys.path.append(os.path.abspath(r"$ubcoreDir_accessories_python"))
+	from $ubcore_ubcorerc_pythonrc import *
 
 
 
@@ -254,9 +254,9 @@ if os.path.exists("$ubcore_accessoriesFile_python"):
 import sys
 # https://stackoverflow.com/questions/436198/what-is-an-alternative-to-execfile-in-python-3
 if sys.hexversion > 0x03000000:
-	exec('exec(open( "$ubcore_accessoriesFile_python_ubhome" ).read() )')
+	exec(r'exec(open( r"$ubcore_accessoriesFile_python_ubhome" ).read() )')
 else:
-	execfile("$ubcore_accessoriesFile_python_ubhome")
+	execfile(r"$ubcore_accessoriesFile_python_ubhome")
 
 
 
@@ -270,9 +270,11 @@ _setupUbiquitous_accessories_here-python_bashrc() {
 	cat << CZXWXcRMTo8EmM8i4d
 
 # Interactive bash shell will default to calling 'python3' while scripts invoking '#! /usr/bin/env python' or similar may still be given 'python2' equivalent.
-alias python=python3
+[[ "\$_PATH_pythonDir" == "" ]] && alias python=python3
 
-export PYTHONSTARTUP="$HOME"/.pythonrc
+[[ "\$_PATH_pythonDir" == "" ]] && [[ "\$_PYTHONSTARTUP" == "" ]] && export PYTHONSTARTUP="$HOME"/.pythonrc
+
+[[ "\$_PATH_pythonDir" != "" ]] && _set_msw_python_procedure
 
 CZXWXcRMTo8EmM8i4d
 }

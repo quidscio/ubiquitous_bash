@@ -339,7 +339,14 @@ echo Creating [%Init_sh%]...
   echo.
   echo # Install python aka pip packages
   echo if [[ ! -e /init-pip ]] ^> /dev/null; then
+  echo  pip3 install --upgrade pip
   echo  pip3 install git-filter-repo
+  REM https://pypi.org/project/huggingface-hub/
+  REM https://github.com/huggingface/huggingface_hub
+  REM echo  pip3 install -U "huggingface_hub^[cli^]"
+  REM echo  pip3 install -U "huggingface_hub[cli]"
+  REM echo  pip3 install -U 'huggingface_hub[cli]'
+  echo  pip3 install -vvv --no-input --no-build-isolation -U "huggingface_hub[cli]" ^< /dev/null
   REM  echo
   REM  /usr/bin/echo
   REM  printf

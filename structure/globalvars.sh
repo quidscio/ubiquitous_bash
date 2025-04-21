@@ -69,9 +69,9 @@ _get_ub_globalVars_sessionDerived() {
 
 export lowsessionid=$(echo -n "$sessionid" | tr A-Z a-z )
 
-# ATTENTION: CAUTION: Unusual Cygwin override to accommodate MSW network drive ( at least when provided by '_userVBox' ) !
 if [[ "$scriptAbsoluteFolder" == '/cygdrive/'* ]] && [[ -e /cygdrive ]] && uname -a | grep -i cygwin > /dev/null 2>&1 && [[ "$scriptAbsoluteFolder" != '/cygdrive/c'* ]] && [[ "$scriptAbsoluteFolder" != '/cygdrive/C'* ]]
 then
+	# ATTENTION: CAUTION: Unusual Cygwin override to accommodate MSW network drive ( at least when provided by '_userVBox' ) !
 	if [[ "$tmpSelf" == "" ]]
 	then
 		
@@ -92,6 +92,13 @@ then
 		true
 		
 	fi
+
+	#_override_msw_git
+	type _override_msw_git_CEILING > /dev/null 2>&1 && _override_msw_git_CEILING
+	#if [[ "$1" != "_setupUbiquitous" ]] && [[ "$ub_under_setupUbiquitous" != "true" ]] && type _write_configure_git_safe_directory_if_admin_owned > /dev/null 2>&1
+	#then
+		_write_configure_git_safe_directory_if_admin_owned "$scriptAbsoluteFolder"
+	#fi
 elif uname -a | grep -i 'microsoft' > /dev/null 2>&1 && uname -a | grep -i 'WSL2' > /dev/null 2>&1
 then
 	if [[ "$tmpSelf" == "" ]]
@@ -162,7 +169,22 @@ then
 	fi
 fi
 
-#Essentially temporary tokens which may need to be reused. 
+if type cygpath > /dev/null 2>&1
+then
+    export scriptAbsoluteLocation_msw=$(cygpath -w "$scriptAbsoluteLocation")
+    export scriptAbsoluteFolder_msw=$(cygpath -w "$scriptAbsoluteFolder")
+
+	export scriptLocal_msw=$(cygpath -w "$scriptLocal")
+    export scriptLib_msw=$(cygpath -w "$scriptLib")
+    
+	export scriptCall_bash="$scriptAbsoluteFolder"'/_bash.bat'
+    export scriptCall_bash_msw="$scriptAbsoluteFolder_msw"'\_bash.bat'
+	export scriptCall_bin="$scriptAbsoluteFolder"/_bin.bat
+    export scriptCall_bin_msw="$scriptAbsoluteFolder_msw"'\_bin.bat'
+fi
+
+#Essentially temporary tokens which may need to be reused.
+# No, NOT AI tokens, predates widespread usage of that term.
 export scriptTokens="$scriptLocal"/.tokens
 
 #Reboot Detection Token Storage

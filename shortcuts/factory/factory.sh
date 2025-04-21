@@ -34,6 +34,14 @@ factory_datasetDir='/c/q/p/zCore/infrastructure/ubiquitous_bash/_local/dataset'
 [[ -e ./dataset ]] && factory_datasetDir="$factory_projectDir"/dataset
 [[ -e ./_local/dataset ]] && factory_datasetDir="$factory_projectDir"/_local/dataset
 
+factory_knowledgeDir='/c/q/p/zCore/infrastructure/ubiquitous_bash/_local/knowledge'
+[[ -e ./knowledge ]] && factory_knowledgeDir="$factory_projectDir"/knowledge
+[[ -e ./_local/knowledge ]] && factory_knowledgeDir="$factory_projectDir"/_local/knowledge
+
+factory_knowledge_distillDir='/c/q/p/zCore/infrastructure/ubiquitous_bash/_local/knowledge_distill'
+[[ -e ./knowledge_distill ]] && factory_knowledge_distillDir="$factory_projectDir"/knowledge_distill
+[[ -e ./_local/knowledge_distill ]] && factory_knowledge_distillDir="$factory_projectDir"/_local/knowledge_distill
+
 # ###
 # PASTE
 # ###
@@ -52,6 +60,10 @@ _set_factory_dir
 
 
 # ###
+# PASTE
+# ###
+
+docker pull axolotlai/axolotl:main-latest
 
 _messagePlain_request 'request: paste ->'
 echo > ./._run-factory_axolotl
@@ -62,13 +74,9 @@ docker inspect --format='{{json .Config.Entrypoint}}' axolotlai/axolotl:main-lat
 #echo 'bash -i' >> ./._run-factory_axolotl
 _messagePlain_request 'request: <- paste'
 
-# ###
-
-
 
 # ###
-# PASTE
-# ###
+
 
 ! type _getAbsoluteLocation > /dev/null 2>&1 && exit 1
 
@@ -82,12 +90,12 @@ then
 #--privileged
 #--ipc=host --ulimit memlock=-1 --ulimit stack=67108864
 #-v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads
-docker run --shm-size=20g --name axolotl-$(_uid 14) --gpus "all" -v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_projectDir":/workspace/project --rm -it axolotlai/axolotl:main-latest "${dockerRunArgs[@]}"
+docker run --shm-size=20g --name axolotl-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_knowledgeDir":/knowledge -v "$factory_knowledge_distillDir":/knowledge_distill -v "$factory_projectDir":/workspace/project --rm -it axolotlai/axolotl:main-latest "${dockerRunArgs[@]}"
 fi
 if ! _if_cygwin
 then
 # WARNING: May be untested.
-docker run --shm-size=20g --name axolotl-$(_uid 14) --gpus "all" -v '/home/user/___quick':/q -v '/home/user/core':/core -v "/home/user"'/Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_projectDir":/workspace/project --rm -it axolotlai/axolotl:main-latest "${dockerRunArgs[@]}"
+docker run --shm-size=20g --name axolotl-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v '/home/user/___quick':/q -v '/home/user/core':/core -v "/home/user"'/Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_projectDir":/workspace/project --rm -it axolotlai/axolotl:main-latest "${dockerRunArgs[@]}"
 fi
 
 # ###
@@ -97,6 +105,135 @@ fi
 
 
 }
+
+
+
+
+_factory_runpod-official() {
+
+! type _set_factory_dir > /dev/null 2>&1 && exit 1
+_set_factory_dir
+
+
+
+# ###
+# PASTE
+# ###
+
+[[ JUPYTER_PASSWORD == "" ]] && export JUPYTER_PASSWORD=$(openssl rand 768 | base64 | tr -dc 'a-zA-Z0-9' | tr -d 'acdefhilmnopqrsuvACDEFHILMNOPQRSU14580' | head -c "24")
+
+docker pull runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04
+
+_messagePlain_request 'request: paste ->'
+echo > ./._run-factory_runpod
+_request_paste_factory-prepare_finetune | tee -a ./._run-factory_runpod
+_request_paste_factory-install_ubiquitous_bash | tee -a ./._run-factory_runpod
+_request_paste_factory-show_finetune | tee -a ./._run-factory_runpod
+_messagePlain_request 'request: JUPYTER_PASSWORD: '"$JUPYTER_PASSWORD"
+docker inspect --format='{{json .Config.Entrypoint}}' runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04 | jq -r '.[]' | tee -a ./._run-factory_runpod
+#echo 'bash -i' >> ./._run-factory_runpod
+_messagePlain_request 'request: <- paste'
+
+
+# ###
+
+
+! type _getAbsoluteLocation > /dev/null 2>&1 && exit 1
+
+#docker image inspect runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04 --format '{{json .Config.Entrypoint}} {{json .Config.Cmd}}'
+
+dockerRunArgs=( bash /workspace/project/._run-factory_runpod )
+[[ ! -e ./._run-factory_runpod ]] && dockerRunArgs=( bash )
+
+if _if_cygwin
+then
+#--privileged
+#--ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+#-v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads
+docker run --shm-size=20g --name runpod-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_knowledgeDir":/knowledge -v "$factory_knowledge_distillDir":/knowledge_distill -v "$factory_projectDir":/workspace/project --rm -it runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04 "${dockerRunArgs[@]}"
+fi
+if ! _if_cygwin
+then
+# WARNING: May be untested.
+docker run --shm-size=20g --name runpod-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v '/home/user/___quick':/q -v '/home/user/core':/core -v "/home/user"'/Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_projectDir":/workspace/project --rm -it runpod/pytorch:2.2.0-py3.10-cuda12.1.1-devel-ubuntu22.04 "${dockerRunArgs[@]}"
+fi
+
+# ###
+# PASTE
+# ###
+
+
+
+}
+
+
+
+
+_factory_runpod-heavy() {
+
+! type _set_factory_dir > /dev/null 2>&1 && exit 1
+_set_factory_dir
+
+
+
+# ###
+# PASTE
+# ###
+
+! docker images | tail -n+2 | grep '^runpod-pytorch-heavy' > /dev/null 2>&1 && exit
+
+[[ JUPYTER_PASSWORD == "" ]] && export JUPYTER_PASSWORD=$(openssl rand 768 | base64 | tr -dc 'a-zA-Z0-9' | tr -d 'acdefhilmnopqrsuvACDEFHILMNOPQRSU14580' | head -c "24")
+
+docker pull runpod-pytorch-heavy
+
+_messagePlain_request 'request: paste ->'
+echo > ./._run-factory_runpod
+_request_paste_factory-prepare_finetune | tee -a ./._run-factory_runpod
+_request_paste_factory-install_ubiquitous_bash | tee -a ./._run-factory_runpod
+_request_paste_factory-show_finetune | tee -a ./._run-factory_runpod
+_messagePlain_request 'request: JUPYTER_PASSWORD: '"$JUPYTER_PASSWORD"
+docker inspect --format='{{json .Config.Entrypoint}}' runpod-pytorch-heavy | jq -r '.[]' | tee -a ./._run-factory_runpod
+#echo 'bash -i' >> ./._run-factory_runpod
+_messagePlain_request 'request: <- paste'
+
+
+# ###
+
+
+! type _getAbsoluteLocation > /dev/null 2>&1 && exit 1
+
+#docker image inspect runpod-pytorch-heavy --format '{{json .Config.Entrypoint}} {{json .Config.Cmd}}'
+
+dockerRunArgs=( bash /workspace/project/._run-factory_runpod )
+[[ ! -e ./._run-factory_runpod ]] && dockerRunArgs=( bash )
+
+if _if_cygwin
+then
+#--privileged
+#--ipc=host --ulimit memlock=-1 --ulimit stack=67108864
+#-v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads
+docker run --shm-size=20g --name runpod-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v 'C:\q':/q -v 'C:\core':/core -v "$USERPROFILE"'\Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_knowledgeDir":/knowledge -v "$factory_knowledge_distillDir":/knowledge_distill -v "$factory_projectDir":/workspace/project --rm -it runpod-pytorch-heavy "${dockerRunArgs[@]}"
+fi
+if ! _if_cygwin
+then
+# WARNING: May be untested.
+docker run --shm-size=20g --name runpod-$(_uid 14) --gpus "all" -e "$JUPYTER_PASSWORD" -e HF_AKI_KEY="$HF_AKI_KEY" -v '/home/user/___quick':/q -v '/home/user/core':/core -v "/home/user"'/Downloads':/Downloads -v "$factory_outputDir":/output -v "$factory_modelDir":/model -v "$factory_datasetDir":/dataset -v "$factory_projectDir":/workspace/project --rm -it runpod-pytorch-heavy "${dockerRunArgs[@]}"
+fi
+
+# ###
+# PASTE
+# ###
+
+
+
+}
+_factory_runpod() {
+    _factory_runpod-heavy
+}
+
+
+
+# https://hub.docker.com/u/langchain
 
 
 
@@ -157,6 +294,8 @@ doNotMatch
 find /model -maxdepth 1 | head -n 65
 find /output -maxdepth 1 | head
 find /dataset -maxdepth 1 | head -n 65
+find /knowledge -maxdepth 1 | head -n 65
+find /knowledge_distill -maxdepth 1 | head -n 65
 find /workspace/project -maxdepth 1 | head -n 65
 
 nvidia-smi

@@ -1,4 +1,6 @@
 
+#./ubiquitous_bash.sh _semanticAssist
+
 
 # ATTENTION: Override with 'ops.sh' or similar if appropriate.
 #export ai_safety="guard"
@@ -19,9 +21,6 @@ _semanticAssist_bash-backend-lowLatency-special() {
 
     ##provider: { "order": ["SambaNova", "Fireworks", "Hyperbolic"]
     #jq -Rs '{ model: "meta-llama/llama-3.1-405b-instruct", provider: { "order": ["Lambda", "Fireworks"], "sort": "latency" }, messages: [{"role": "user", "content": .}] }' | curl -fsS --max-time 120 --keepalive-time 300 --compressed --tcp-fastopen --http2 -X POST https://openrouter.ai/api/v1/chat/completions -H "Content-Type: application/json" -H "Authorization: Bearer $OPENROUTER_API_KEY" --data-binary @- | jq -r '.choices[0].message.content'
-
-    ###provider: { "order": ["Lambda", "Fireworks"], "sort": "latency" }
-    ##jq -Rs '{ model: "meta-llama/llama-4-scout", provider: { "sort": "latency" }, messages: [{"role": "user", "content": .}] }' | curl -fsS --max-time 120 --keepalive-time 300 --compressed --tcp-fastopen --http2 -X POST https://openrouter.ai/api/v1/chat/completions -H "Content-Type: application/json" -H "Authorization: Bearer $OPENROUTER_API_KEY" --data-binary @- | jq -r '.choices[0].message.content'
 }
 
 # ATTENTION: Override with 'ops.sh' or similar if appropriate.
@@ -73,7 +72,8 @@ _semanticAssist_procedure_procedure() {
         export distill_projectDir="$scriptLocal"/knowledge/"$objectName"
         export distill_distillDir="$scriptLocal"/knowledge_distill/"$objectName"
 
-        [[ "$objectName" == "ubiquitous_bash" ]] && _knowledge-ubiquitous_bash
+        type _knowledge-"$objectName" > /dev/null 2>&1 && _knowledge-"$objectName"
+        #[[ "$objectName" == "ubiquitous_bash" ]] && _knowledge-ubiquitous_bash
         _safeRMR "$scriptLocal"/knowledge_distill/"$objectName"
     fi
     #[[ "$distill_distillDir" != "" ]] && [[ -e "$distill_distillDir" ]] && _safeRMR "$distill_distillDir"

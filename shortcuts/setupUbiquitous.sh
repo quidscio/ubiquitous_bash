@@ -40,27 +40,37 @@ _installUbiquitous() {
 	local localFunctionEntryPWD
 	localFunctionEntryPWD="$PWD"
 	
-	cd "$ubcoreDir"
+	! cd "$ubcoreDir" && _messagePlain_bad 'bad: cd $ubcoreUBdir' && return 1
 	
-	cd "$ubcoreUBdir"
-	_messagePlain_nominal 'attempt: git pull'
+	! cd "$ubcoreUBdir" && _messagePlain_bad 'bad: cd $ubcoreUBdir' && return 1
+	_messagePlain_nominal 'attempt: git pull: '"$PWD"
 	if [[ "$nonet" != "true" ]] && type git > /dev/null 2>&1
 	then
 		_gitBest_detect
 		
-		local ub_gitPullStatus
-		#git pull
-		_gitBest pull
-		ub_gitPullStatus="$?"
-		#[[ "$ub_gitPullStatus" != 0 ]] && git pull && ub_gitPullStatus="$?"
-		[[ "$ub_gitPullStatus" != 0 ]] && _gitBest pull && ub_gitPullStatus="$?"
-		! cd "$localFunctionEntryPWD" && return 1
-		
+		# CAUTION: After calling 'ubcp-cygwin-portable-installer' during 'build_ubcp' job of GitHub Actions 'build.yml', or similar devops/CI, etc, '/home/root/.ubcore/ubiquitous_bash' is a subdirectory at 'C:\...\ubiquitous_bash\_local\ubcp\cygwin\home\root\.ubcore\ubiquitous_bash' or similar.
+		#  DANGER: This causes MSWindows native 'git' binaries to perceive a git repository '.git' subdirectory already exists at the parent directory 'C:\...\ubiquitous_bash' , catastrophically causing 'git pull' to succeed, without populating the '/home/root/.ubcore/ubiquitous_bash' directory with 'ubiquitous_bash.sh' .
+		# Preventing that scenario, detect whether a '.git' subdirectory exists at "$ubcoreUBdir"/.git , which should also be the same as './.git' .
+		if [[ -e "$ubcoreUBdir"/.git ]] && [[ -e ./.git ]]
+		then
+			local ub_gitPullStatus
+			#git pull
+			_gitBest pull
+			ub_gitPullStatus="$?"
+			#[[ "$ub_gitPullStatus" != 0 ]] && git pull && ub_gitPullStatus="$?"
+			if [[ "$ub_gitPullStatus" != 0 ]]
+			then
+				_gitBest pull
+				ub_gitPullStatus="$?"
+			fi
+			! cd "$localFunctionEntryPWD" && return 1
+
 		[[ "$ub_gitPullStatus" == "0" ]] && _messagePlain_good 'pass: git pull' && cd "$localFunctionEntryPWD" && return 0
+		fi
 	fi
-	_messagePlain_warn 'fail: git pull'
+	_messagePlain_warn 'fail: git pull: '"$PWD"
 	
-	cd "$ubcoreDir"
+	! cd "$ubcoreDir" && _messagePlain_bad 'bad: cd $ubcoreDir' && return 1
 	_messagePlain_nominal 'attempt: git clone'
 	[[ "$nonet" != "true" ]] && type git > /dev/null 2>&1 && [[ ! -e ".git" ]] && [[ ! -e "$ubcoreUBdir"/.git ]] && _gitClone_ubiquitous && _messagePlain_good 'pass: git clone' && return 0
 	[[ "$nonet" != "true" ]] && type git > /dev/null 2>&1 && [[ ! -e ".git" ]] && [[ ! -e "$ubcoreUBdir"/.git ]] && _gitClone_ubiquitous && _messagePlain_good 'pass: git clone' && return 0
@@ -109,6 +119,7 @@ _installUbiquitous() {
 
 _setupUbiquitous() {
 	_messageNormal "init: setupUbiquitous"
+	export ub_under_setupUbiquitous="true"
 	
 	if _if_cygwin
 	then
@@ -128,7 +139,7 @@ _setupUbiquitous() {
 	export ubcoreFile="$ubcoreDir"/.ubcorerc
 	
 	export ubcoreDir_accessories="$ubHome"/.ubcore/accessories
-	
+	export ubcoreDir_accessories_python="$ubcoreDir_accessories"/python
 	
 	# WARNING: Despite the name, do NOT point this to 'ubcore.sh' or similar. Full set of functions are expected from this file by some use cases!
 	export ubcoreUBdir="$ubcoreDir"/ubiquitous_bash
