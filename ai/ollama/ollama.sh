@@ -187,7 +187,17 @@ _setup_ollama_model_augment_sequence() {
 	
 	# https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/tree/main
 	# https://web.archive.org/web/20240831194035/https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/tree/main
-	# Explicitly states 'License: llama3.1'. Readme file from repository does NOT contradict this.
+	# https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF
+	# https://web.archive.org/web/20250323003504/https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF
+	# https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF
+	# https://web.archive.org/web/20250105072418/https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF
+	# https://huggingface.co/mlabonne/NeuralDaredevil-8B-abliterated
+	# https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF
+	# https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF/tree/main
+	# https://web.archive.org/web/20250526124847/https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF
+	# https://web.archive.org/web/20250206175259/https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF/tree/main
+	#
+	# Explicitly states 'License: llama3.1'. Readme files, etc, from repository does NOT contradict this.
 	
 	# https://www.llama.com/llama3_1/license/
 	# https://huggingface.co/meta-llama/Meta-Llama-3.1-70B-Instruct/blob/main/LICENSE
@@ -262,26 +272,69 @@ _setup_ollama_model_augment_sequence() {
 	
 	# TODO: TODO: Intentionally overfit smaller parameter models by reinforcing prompt/response for specific knowledge (eg. plasma recombiation light emission physics) and reasoning (eg. robot motor control).
 	
+
+	# Reducing 'Llama-augment' model size by more qunatization than Q4_K_M mostly benefits use cases possibly alongside other AI LLM models which may consume nearly all available RAM, VRAM, etc.
 	
-	# TODO: There may or may not be more track record with this slightly different model, using Q4-K-M quantization.
+	# May or may not be more track record with this slightly different model, using Q4-K-M quantization.
 	# https://huggingface.co/grimjim/Llama-3.1-8B-Instruct-abliterated_via_adapter-GGUF
 	
-	# TODO: Consider alternative quantization, especially IQ2-M, IQ4-XS. Beware Q4-K-M may have some community testing of important edge cases already.
+	# Alternative quantization, especially IQ2-M, IQ4-XS. Beware Q4-K-M may have some community testing of important edge cases already.
 	# https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/tree/main
+
+	# Given the 'augment' use that has been proven, using an AI LLM similarly to 'sed', 'grep', etc, already requiring a second 'gibberish' detection step, slight degradation of reliability should cause no issues. Recommended quantizations are IQ3_XXS (~5% per ~67% less reliability), IQ2_XXS (~20% per 67% less reliability).
+	#  The '~20% per 67%' less reliability is based on the idea that for a problem or problem set the AI LLM may solve correctly 67% of the time, the rate of correct solutions will be reduced by ~20% .
+	#  https://raw.githubusercontent.com/matt-c1/llama-3-quant-comparison/refs/heads/main/plots/MMLU-Correctness-vs-Model-Size.svg
+	# https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-i1-GGUF/tree/main
+
+
 	
-	echo 'FROM ./llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf
+	# Default 'temperature' may have previously been 0.8 .
+	# https://github.com/ollama/ollama/issues/6410?utm_source=chatgpt.com
+	# https://github.com/ollama/ollama/blob/main/api/types.go#L657
+	echo 'FROM ./NeuralDaredevil-8B-abliterated.Q3_K_M.gguf
 PARAMETER num_ctx 6144
+
+TEMPLATE "{{- range .Messages }}<|start_header_id|>{{ .Role }}<|end_header_id|>
+
+{{ .Content }}<|eot_id|>
+{{- end }}<|start_header_id|>assistant<|end_header_id|>
+
+"
+PARAMETER num_ctx 6144
+PARAMETER stop <|start_header_id|>
+PARAMETER stop <|end_header_id|>
+PARAMETER stop <|eot_id|>
+PARAMETER temperature 0.7
+
 ' > Llama-augment.Modelfile
 
 	_here_license-Llama-augment >> Llama-augment.Modelfile
 	
-	#wget 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf'
-	aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf'
-	[[ ! -e 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' --disable-ipv6=true
+	##wget 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf'
+	#aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf'
+	#[[ ! -e 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' --disable-ipv6=true
 	
-	if [[ ! -e 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' ]]
+	# DUBIOUS . May not be compatible with ollama , etc.
+	##wget 'https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-i1-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ2_XXS.gguf'
+	#aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf' 'https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-i1-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf'
+	#[[ ! -e 'Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf' 'https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-i1-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf' --disable-ipv6=true
+
+	# DUBIOUS . May not be compatible with ollama , etc.
+	##wget 'https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf'
+	#aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf' 'https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf'
+	#[[ ! -e 'Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf' 'https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf' --disable-ipv6=true
+
+	##wget 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf'
+	#aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf'
+	#[[ ! -e 'meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf' --disable-ipv6=true
+
+	#wget 'https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF/resolve/main/NeuralDaredevil-8B-abliterated.Q3_K_M.gguf'
+	aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'NeuralDaredevil-8B-abliterated.Q3_K_M.gguf' 'https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF/resolve/main/NeuralDaredevil-8B-abliterated.Q3_K_M.gguf'
+	[[ ! -e 'NeuralDaredevil-8B-abliterated.Q3_K_M.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'NeuralDaredevil-8B-abliterated.Q3_K_M.gguf' 'https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF/resolve/main/NeuralDaredevil-8B-abliterated.Q3_K_M.gguf' --disable-ipv6=true
+	
+	if [[ ! -e 'NeuralDaredevil-8B-abliterated.Q3_K_M.gguf' ]]
 	then
-		_wget_githubRelease_join "soaringDistributions/Llama-augment_bundle" "" "llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf"
+		_wget_githubRelease_join "soaringDistributions/Llama-augment_bundle" "" "NeuralDaredevil-8B-abliterated.Q3_K_M.gguf"
 	fi
 	
 	_service_ollama
@@ -293,6 +346,11 @@ PARAMETER num_ctx 6144
 		! echo | sudo -n tee /AI-Llama-augment > /dev/null && _messagePlain_bad 'bad: FAIL: echo | sudo -n tee /AI-Llama-augment' && _messageFAIL
 	fi
 
+	rm -f NeuralDaredevil-8B-abliterated.Q3_K_M.gguf
+	rm -f meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf
+	rm -f Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf
+	rm -f Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ2_XXS.gguf
+	rm -f Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf
 	rm -f llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf
 	rm -f Llama-augment.Modelfile
 	
@@ -522,6 +580,8 @@ _service_ollama_augment() {
 	local current_OLLAMA_HOST
 	current_OLLAMA_HOST="$OLLAMA_HOST"
 	[[ "$current_OLLAMA_HOST" == "" ]] && current_OLLAMA_HOST='127.0.0.1:11434'
+
+	wget --timeout=1 --tries=3 'http://'"$current_OLLAMA_HOST" -q -O - > /dev/null 2>&1 && return 0
 	
 	if _if_cygwin && ! wget --timeout=1 --tries=3 'http://'"$current_OLLAMA_HOST" -q -O - > /dev/null 2>&1
 	then

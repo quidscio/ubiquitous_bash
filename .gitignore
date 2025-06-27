@@ -5,6 +5,8 @@
 ._run-factory
 ._run-factory*
 
+*devtask*/
+
 _bundle/
 lean_compressed.sh
 ubcore_compressed.sh
@@ -16,6 +18,8 @@ ubiquitous_bash_compressed.sh
 
 rotten_test_compressed.sh
 rotten_test.sh
+
+project.afs
 
 /ops
 
@@ -103,6 +107,8 @@ awkvars.out
 
 *.log
 *.ldb
+
+*.cast
 
 **/*cache*
 **/*Cache*

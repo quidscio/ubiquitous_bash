@@ -994,6 +994,22 @@ _getMost_debian11_install() {
 	_getMost_backend_aptGetInstall recode
 	_getMost_backend_aptGetInstall asciidoc
 	
+	_getMost_backend_aptGetInstall pandoc
+	_getMost_backend_aptGetInstall texlive-xetex
+	_getMost_backend_aptGetInstall texlive-latex-recommended
+	_getMost_backend_aptGetInstall texlive-latex-extra
+	_getMost_backend_aptGetInstall fonts-texgyre
+	_getMost_backend_aptGetInstall fonts-texgyre-math
+	_getMost_backend_aptGetInstall tex-gyre
+	_getMost_backend_aptGetInstall texlive-fonts-recommended
+	
+	_getMost_backend_aptGetInstall asciinema
+	_getMost_backend_aptGetInstall gifsicle imagemagick apngasm ffmpeg
+	_getMost_backend_aptGetInstall webp
+
+	_getMost_backend_aptGetInstall ansifilter
+	_getMost_backend_aptGetInstall ansifilter-gui
+	
 	
 	
 	_getMost_backend_aptGetInstall pavucontrol

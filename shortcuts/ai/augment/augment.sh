@@ -106,9 +106,40 @@ _augment-backend() {
 }
 
 
+_here_bashTool-noOtherInfo() {
+
+	# ATTENTION: NOTICE: Especially with a small model...
+	# Regard this as similar to an analog modem symbol decoder with a filter bank attached to a filter bank used as a delay line.
+	# Negative Prompt (Do not output any other information.
+	#
+	# Positive Prompt (Please state the datum, ), Negative Prompt (do not *include* any other information,), this...
+	# stuff
+	# Negative Prompt (Do not output any other information.)
+	# Positive Prompt (Output only the one line command or parameter.), Negative Prompt (Do not output any other text.), Positive Prompt (Since this is zero-shot tool use, only the one line will be helpful, any other output will be unhelpful.)
+	#
+	# Thus, for good results, your prompt given to 'augment' function should closely resemble this example:
+	# EXAMPLE
+	# Please state the domain name or IP address, do not include any other information, from this bash shellcode command:
+	# ```bash
+	# ssh root@123.123.123.123 -p 122 -i ~/.ssh/id_ed25519
+	# ```
+	#
+	# Such an approach quickly 'dampens' any Positive Prompt 'ringing' or 'overshoot' from a Positive Prompt with a Negative Prompt before any effects can accumulate in the AI LLM model output.
+	#
+	# That said, less quantization of the 'Llama-augment' , Q8_0 instead of Q2_K , will require far less careful such 'dampening'. Given the automation purpose of the 'Llama-augment' model, the tradeoff of requiring more careful prompting is well worthwhile to improve processing speed, etc. Especially since only at most one negative prompt not already automatically added is needed, and only to address a specific nuance in the developer's own Positive Prompt, such as the 'datum' being an address, given that usernames are commonly used with such addresses in HTTP URLs, etc.
+
+
+    cat << 'CZXWXcRMTo8EmM8i4d'
+
+Do not output any other information.
+
+CZXWXcRMTo8EmM8i4d
+}
 
 _here_bashTool-askCommand-ONLY() {
     cat << 'CZXWXcRMTo8EmM8i4d'
+
+Do not output any other information.
 
 Output only the one line command or parameter. Do not output any other text. Since this is zero-shot tool use, only the one line will be helpful, any other output will be unhelpful.
 
@@ -194,32 +225,36 @@ CZXWXcRMTo8EmM8i4d
 
 _augment_procedure() {
 	( _messageNormal ' ... augment' >&2 ) > /dev/null
-	
-	cat > "$safeTmp"/input_prompt.txt
 
-	_here_bashTool-askCommand-ONLY > "$safeTmp"/processing-bashTool-askCommand-ONLY.txt
+	[[ "$fastTmp" == "" ]] && local fastTmp="$safeTmp"
+
+	_here_bashTool-noOtherInfo > "$fastTmp"/processing-bashTool-noOtherInfo-ONLY.txt
+	
+	cat > "$fastTmp"/input_prompt.txt
+
+	_here_bashTool-askCommand-ONLY > "$fastTmp"/processing-bashTool-askCommand-ONLY.txt
 
 
 	local currentIteration=0
 	#[[ "$currentIteration" -lt 85 ]]
-	while [[ $(cat "$safeTmp"/processing-bashTool-isGibberish.txt 2>/dev/null | tr -dc 'a-zA-Z0-9' | tr 'A-Z' 'a-z' | tail -c 5 ) != 'valid' ]] && [[ "$currentIteration" -lt 45 ]]
+	while [[ $(cat "$fastTmp"/processing-bashTool-isGibberish.txt 2>/dev/null | tr -dc 'a-zA-Z0-9' | tr 'A-Z' 'a-z' | tail -c 5 ) != 'valid' ]] && [[ "$currentIteration" -lt 45 ]]
 	do
 		( _messagePlain_nominal ' ... augment: '"$currentIteration" >&2 ) > /dev/null
-		cat "$safeTmp"/input_prompt.txt "$safeTmp"/processing-bashTool-askCommand-ONLY.txt | _augment-backend "$@" > "$safeTmp"/output_prompt.txt
+		cat "$fastTmp"/processing-bashTool-noOtherInfo-ONLY.txt "$fastTmp"/input_prompt.txt "$fastTmp"/processing-bashTool-askCommand-ONLY.txt | _augment-backend "$@" > "$fastTmp"/output_prompt.txt
 
-		rm -f "$safeTmp"/processing-bashTool-askGibberish.txt > /dev/null 2>&1
-		if [[ -s "$safeTmp"/output_prompt.txt ]]
+		rm -f "$fastTmp"/processing-bashTool-askGibberish.txt > /dev/null 2>&1
+		if [[ -s "$fastTmp"/output_prompt.txt ]]
 		then
-			_here_bashTool-askGibberish > "$safeTmp"/processing-bashTool-askGibberish.txt
-			cat "$safeTmp"/output_prompt.txt "$safeTmp"/processing-bashTool-askGibberish.txt | _augment-backend "$@" > "$safeTmp"/processing-bashTool-isGibberish.txt
+			_here_bashTool-askGibberish > "$fastTmp"/processing-bashTool-askGibberish.txt
+			cat "$fastTmp"/output_prompt.txt "$fastTmp"/processing-bashTool-askGibberish.txt | _augment-backend "$@" > "$fastTmp"/processing-bashTool-isGibberish.txt
 		fi
 
-		if [[ -e "$safeTmp"/processing-bashTool-isGibberish.txt ]] && [[ $(cat "$safeTmp"/processing-bashTool-isGibberish.txt | tr -dc 'a-zA-Z0-9' | tr 'A-Z' 'a-z' | tail -c 5 ) != 'valid' ]]
+		if [[ -e "$fastTmp"/processing-bashTool-isGibberish.txt ]] && [[ $(cat "$fastTmp"/processing-bashTool-isGibberish.txt | tr -dc 'a-zA-Z0-9' | tr 'A-Z' 'a-z' | tail -c 5 ) != 'valid' ]]
 		then
 			( _messagePlain_warn 'warn: gibberish: ' >&2 ) > /dev/null
-			( cat "$safeTmp"/output_prompt.txt | tr -dc 'a-zA-Z0-9\-_\ \=\+\/\.' >&2 ) > /dev/null
+			( cat "$fastTmp"/output_prompt.txt | tr -dc 'a-zA-Z0-9\-_\ \=\+\/\.' >&2 ) > /dev/null
 			( echo >&2 ) > /dev/null
-			( _messagePlain_probe 'currentGibberish= '$(cat "$safeTmp"/processing-bashTool-isGibberish.txt | head -c 192 | tr -dc 'a-zA-Z0-9') >&2 ) > /dev/null
+			( _messagePlain_probe 'currentGibberish= '$(cat "$fastTmp"/processing-bashTool-isGibberish.txt | head -c 192 | tr -dc 'a-zA-Z0-9') >&2 ) > /dev/null
 			( echo  >&2 ) > /dev/null
 		fi
 		
@@ -227,7 +262,7 @@ _augment_procedure() {
 	done
 
 
-	cat "$safeTmp"/output_prompt.txt
+	cat "$fastTmp"/output_prompt.txt
 }
 _augment_sequence() {
 	_start
@@ -235,6 +270,21 @@ _augment_sequence() {
 	_augment_procedure "$@"
 
 	_stop
+}
+# WARNING: DUBIOUS. Unusual, VERY UNUSUAL. Avoids the more appropriate technique of recursively calling the script with the usual separate environment, _stop trap, etc.
+_augment_fast() {
+	(
+		export fastid=$(_uid)
+		export fastTmp="$tmpSelf""$tmpPrefix"/w_"$fastid"
+
+		mkdir -p "$fastTmp"
+		[[ "$tmpSelf" != "$scriptAbsoluteFolder" ]] && echo "$tmpSelf" 2> /dev/null > "$scriptAbsoluteFolder"/__d_$(echo "$fastid" | head -c 16)
+
+		_augment_procedure "$@"
+
+		_safeRMR "$fastTmp"
+		unset fastTmp
+	)
 }
 _augment() {
     "$scriptAbsoluteLocation" _augment_sequence "$@"

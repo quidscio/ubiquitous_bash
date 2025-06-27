@@ -60,6 +60,12 @@ _install_certs() {
 
     _install_certs_write
 
+    # Setup scripts in constrained repetitive environments (ie. OpenAI Codex setup script) may multi-thread concurrent _setupUbiquitous with apt-get . This detects that, and prevents dpkg collision.
+    while pgrep '^dpkg$' > /dev/null 2>&1
+    do
+        sleep 1
+    done
+
     local currentExitStatus="1"
     ! _if_cygwin && sudo -n update-ca-certificates
     [[ "$?" == "0" ]] && currentExitStatus="0"

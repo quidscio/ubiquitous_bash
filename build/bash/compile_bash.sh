@@ -31,6 +31,9 @@ _compile_bash_deps() {
 	then
 		_deps_dev_ai
 		
+		_deps_dev_heavy
+		_deps_dev_heavy_asciinema
+		
 		_deps_dev_buildOps
 		
 		_deps_notLean
@@ -269,6 +272,7 @@ _compile_bash_deps() {
 		_deps_dev_ai
 		
 		_deps_dev_heavy
+		_deps_dev_heavy_asciinema
 		#_deps_dev_heavy_atom
 		_deps_dev
 		_deps_dev_buildOps
@@ -390,6 +394,7 @@ _compile_bash_deps() {
 		_deps_dev_ai
 		
 		_deps_dev_heavy
+		_deps_dev_heavy_asciinema
 		#_deps_dev_heavy_atom
 		_deps_dev
 		_deps_dev_buildOps
@@ -533,6 +538,7 @@ _compile_bash_deps() {
 		_deps_dev_ai
 		
 		_deps_dev_heavy
+		_deps_dev_heavy_asciinema
 		#_deps_dev_heavy_atom
 		_deps_dev
 		_deps_dev_buildOps
@@ -820,6 +826,8 @@ _compile_bash_utilities() {
 	[[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "instrumentation"/bashdb/bashdb.sh )
 	( [[ "$enUb_notLean" == "true" ]] || [[ "$enUb_stopwatch" == "true" ]] ) && includeScriptList+=( "instrumentation"/profiling/stopwatch.sh )
 	
+	[[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "instrumentation"/asciinema/asciinema.sh )
+	
 	[[ "$enUb_generic" == "true" ]] && includeScriptList+=( "generic"/generic.sh )
 }
 
@@ -947,6 +955,7 @@ _compile_bash_shortcuts() {
 	
 	( ( [[ "$enUb_dev_heavy" == "true" ]] ) || [[ "$enUb_ai_augment" == "true" ]] ) && includeScriptList+=( "shortcuts/ai/augment"/augment.sh )
 
+	[[ "$enUb_factory_shortcuts" ]] && includeScriptList+=( "shortcuts/factory"/factoryTest.sh )
 	[[ "$enUb_factory_shortcuts" ]] && includeScriptList+=( "shortcuts/factory"/factoryCreate_here.sh )
 	[[ "$enUb_factory_shortcuts" ]] && includeScriptList+=( "shortcuts/factory"/factoryCreate.sh )
 	[[ "$enUb_factory_shortcuts" ]] && includeScriptList+=( "shortcuts/factory"/factory.sh )

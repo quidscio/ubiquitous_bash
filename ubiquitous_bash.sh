@@ -39,7 +39,7 @@ _ub_cksum_special_derivativeScripts_contents() {
 #export ub_setScriptChecksum_disable='true'
 ( [[ -e "$0".nck ]] || [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$1" == '--profile' ]] || [[ "$1" == '--script' ]] || [[ "$1" == '--call' ]] || [[ "$1" == '--return' ]] || [[ "$1" == '--devenv' ]] || [[ "$1" == '--shell' ]] || [[ "$1" == '--bypass' ]] || [[ "$1" == '--parent' ]] || [[ "$1" == '--embed' ]] || [[ "$1" == '--compressed' ]] || [[ "$0" == "/bin/bash" ]] || [[ "$0" == "-bash" ]] || [[ "$0" == "/usr/bin/bash" ]] || [[ "$0" == "bash" ]] ) && export ub_setScriptChecksum_disable='true'
 export ub_setScriptChecksum_header='3620520443'
-export ub_setScriptChecksum_contents='3816781369'
+export ub_setScriptChecksum_contents='2247276186'
 
 # CAUTION: Symlinks may cause problems. Disable this test for such cases if necessary.
 # WARNING: Performance may be crucial here.
@@ -683,11 +683,11 @@ fi
 # As of 2025-05-20 , a development system, VSCode PowerShell terminal, has been known to impose 45 such lines on MSWEXTPATH , other PowerShell terminal imposed 41 such lines. Limit of 44 lines at the time was exceeded.
 if [[ "$MSWEXTPATH" != "" ]] && ( [[ "$PATH" == *"/cygdrive"* ]] || [[ "$PATH" == "/cygdrive"* ]] ) && [[ "$convertedMSWEXTPATH" == "" ]] && _if_cygwin
 then
-	if [[ $(echo "$MSWEXTPATH" | grep -o ';\|:' | wc -l | tr -dc '0-9') -le 60 ]] && [[ $(echo "$PATH" | grep -o ':' | wc -l | tr -dc '0-9') -le 60 ]]
-	then
-		export convertedMSWEXTPATH=$(cygpath -p "$MSWEXTPATH")
-		export PATH=/usr/bin:"$convertedMSWEXTPATH":"$PATH"
-	fi
+        if [[ $(echo "$MSWEXTPATH" | grep -o ';' | wc -l | tr -dc '0-9') -le 99 ]] && [[ $(echo "$PATH" | grep -o ':' | wc -l | tr -dc '0-9') -le 99 ]]
+        then
+                export convertedMSWEXTPATH=$(cygpath -p "$MSWEXTPATH")
+                export PATH=/usr/bin:"$convertedMSWEXTPATH":"$PATH"
+        fi
 fi
 
 
@@ -1029,8 +1029,17 @@ then
 	#}
 	#alias l='_wsl'
 	alias u='_wsl'
+	
+	# MSWindows native 'PowerSession' apparently does not support 'asciinema cat'.
+	#alias asciinema='PowerSession'
 
-	alias codex='wsl -d ubdist codex'
+	# Optional. Other than recording, and some issues with 'asciinema cat', pip installed 'asciinema' seems usable .
+	# Use _asciinema_record to record .
+	alias asciinema='wsl -d ubdist asciinema'
+
+	#alias codex='wsl -d ubdist codex'
+	alias codex='wsl -d ubdist "~/.ubcore/ubiquitous_bash/ubcore.sh" _codexBin-usr_bin_node'
+
 	alias codexNative=$(type -P codex 2>/dev/null)
 fi
 	
@@ -1212,9 +1221,8 @@ _userMSW() {
 	"${processedArgs[@]}"
 }
 
-
-_powershell() {
-    local currentPowershellBinary
+_discover_powershell() {
+	local currentPowershellBinary
     currentPowershellBinary=$(find /cygdrive/c/Windows/System32/WindowsPowerShell/ -name powershell.exe 2>/dev/null | head -n 1)
     [[ "$currentPowershellBinary" == "" ]] && currentPowershellBinary=$(find /cygdrive/d/Windows/System32/WindowsPowerShell/ -name powershell.exe 2>/dev/null | head -n 1)
     [[ "$currentPowershellBinary" == "" ]] && currentPowershellBinary=$(find /cygdrive/e/Windows/System32/WindowsPowerShell/ -name powershell.exe 2>/dev/null | head -n 1)
@@ -1224,6 +1232,15 @@ _powershell() {
     [[ "$currentPowershellBinary" == "" ]] && currentPowershellBinary=$(find /mnt/d/Windows/System32/WindowsPowerShell/ -name powershell.exe 2>/dev/null | head -n 1)
     [[ "$currentPowershellBinary" == "" ]] && currentPowershellBinary=$(find /mnt/e/Windows/System32/WindowsPowerShell/ -name powershell.exe 2>/dev/null | head -n 1)
     [[ "$currentPowershellBinary" == "" ]] && currentPowershellBinary=$(find /mnt/f/Windows/System32/WindowsPowerShell/ -name powershell.exe 2>/dev/null | head -n 1)
+
+	_safeEcho "$currentPowershellBinary"
+	[[ "$currentPowershellBinary" != "" ]] && return 0
+	return 1
+}
+
+_powershell() {
+    local currentPowershellBinary
+    currentPowershellBinary=$(_discover_powershell)
 
 	#_userMSW "$currentPowershellBinary" "$@"
     "$currentPowershellBinary" "$@"
@@ -12255,6 +12272,22 @@ _getMost_debian11_install() {
 	_getMost_backend_aptGetInstall recode
 	_getMost_backend_aptGetInstall asciidoc
 	
+	_getMost_backend_aptGetInstall pandoc
+	_getMost_backend_aptGetInstall texlive-xetex
+	_getMost_backend_aptGetInstall texlive-latex-recommended
+	_getMost_backend_aptGetInstall texlive-latex-extra
+	_getMost_backend_aptGetInstall fonts-texgyre
+	_getMost_backend_aptGetInstall fonts-texgyre-math
+	_getMost_backend_aptGetInstall tex-gyre
+	_getMost_backend_aptGetInstall texlive-fonts-recommended
+	
+	_getMost_backend_aptGetInstall asciinema
+	_getMost_backend_aptGetInstall gifsicle imagemagick apngasm ffmpeg
+	_getMost_backend_aptGetInstall webp
+
+	_getMost_backend_aptGetInstall ansifilter
+	_getMost_backend_aptGetInstall ansifilter-gui
+	
 	
 	
 	_getMost_backend_aptGetInstall pavucontrol
@@ -13267,12 +13300,12 @@ APT::AutoRemove::SuggestsImportant "true";' | tee /etc/apt/apt.conf.d/99autoremo
 	}
 
 	# ubiquitous_bash  fast alternative
-	#strace sudo wget gpg curl pigz pixz bash aria2 git git-lfs bc nmap socat sockstat rsync net-tools uuid-runtime netcat-openbsd axel util-linux gawk libncurses-dev gh crudini bsdutils findutils p7zip p7zip-full unzip zip lbzip2 dnsutils bind9-dnsutils lz4 mawk patch tar gzip bzip2 sed pv expect wipe iputils-ping zstd zlib1g coreutils openssl xz-utils libreadline8 libreadline-dev mkisofs genisoimage dos2unix lsof aptitude jq xxd sloccount dosfstools apt-utils git-filter-repo qalc apt-transport-https tcl tk
+	#procps strace sudo wget gpg curl pigz pixz bash aria2 git git-lfs bc nmap socat sockstat rsync net-tools uuid-runtime netcat-openbsd axel util-linux gawk libncurses-dev gh crudini bsdutils findutils p7zip p7zip-full unzip zip lbzip2 dnsutils bind9-dnsutils lz4 mawk patch tar gzip bzip2 sed pv expect wipe iputils-ping zstd zlib1g coreutils openssl xz-utils libreadline8 libreadline-dev mkisofs genisoimage dos2unix lsof aptitude jq xxd sloccount dosfstools apt-utils git-filter-repo qalc apt-transport-https tcl tk
 
 	# ubiquitous_bash  basic alternative
-	#strace sudo wget gpg curl pigz pixz bash aria2 git git-lfs bc nmap socat sockstat rsync net-tools uuid-runtime netcat-openbsd axel unionfs-fuse util-linux screen gawk libelf-dev libncurses-dev gh crudini bsdutils findutils p7zip p7zip-full unzip zip lbzip2 jp2a dnsutils bind9-dnsutils lz4 mawk libelf-dev elfutils patch tar gzip bzip2 librecode0 udftools sed cpio pv expect wipe iputils-ping btrfs-progs btrfs-compsize zstd zlib1g coreutils openssl growisofs e2fsprogs xz-utils libreadline8 libreadline-dev mkisofs genisoimage wodim dos2unix fuse-overlayfs xorriso squashfs-tools mtools lsof aptitude jq xxd sloccount dosfstools apt-utils git-filter-repo qalc apt-transport-https tcl tk
+	#procps strace sudo wget gpg curl pigz pixz bash aria2 git git-lfs bc nmap socat sockstat rsync net-tools uuid-runtime netcat-openbsd axel unionfs-fuse util-linux screen gawk libelf-dev libncurses-dev gh crudini bsdutils findutils p7zip p7zip-full unzip zip lbzip2 jp2a dnsutils bind9-dnsutils lz4 mawk libelf-dev elfutils patch tar gzip bzip2 librecode0 udftools sed cpio pv expect wipe iputils-ping btrfs-progs btrfs-compsize zstd zlib1g coreutils openssl growisofs e2fsprogs xz-utils libreadline8 libreadline-dev mkisofs genisoimage wodim dos2unix fuse-overlayfs xorriso squashfs-tools mtools lsof aptitude jq xxd sloccount dosfstools apt-utils git-filter-repo qalc apt-transport-https tcl tk
 
-	_aptGetInstall strace sudo wget gpg curl pigz pixz bash aria2 git git-lfs bc nmap socat sockstat rsync net-tools uuid-runtime iperf3 vim man-db gnulib libtool libtool-bin intltool libgts-dev netcat-openbsd iperf axel unionfs-fuse debootstrap util-linux screen gawk build-essential flex libelf-dev libncurses-dev autoconf libudev-dev dwarves pahole cmake gh libusb-dev libusb-1.0 setserial libffi-dev libusb-1.0-0 libusb-1.0-0-dev libusb-1.0-doc pkg-config crudini bsdutils findutils v4l-utils libevent-dev libjpeg-dev libbsd-dev libusb-1.0 gdb libbabeltrace1 libc6-dbg libsource-highlight-common libsource-highlight4v5 initramfs-tools dmidecode p7zip p7zip-full unzip zip lbzip2 jp2a dnsutils bind9-dnsutils live-boot mktorrent gdisk lz4 mawk nano bison libelf-dev elfutils patch tar gzip bzip2 librecode0 sed texinfo udftools wondershaper sysbench libssl-dev cpio pv expect libfuse2 wipe iputils-ping btrfs-progs btrfs-compsize zstd zlib1g nilfs-tools coreutils sg3-utils kpartx openssl growisofs udev cryptsetup parted e2fsprogs xz-utils libreadline8 libreadline-dev mkisofs genisoimage wodim eject hdparm sdparm php cifs-utils debhelper nsis dos2unix fuse-overlayfs xorriso squashfs-tools grub-pc-bin grub-efi-amd64-bin mtools squashfs-tools squashfs-tools-ng fdisk lsof usbutils aptitude recode libpotrace0 libwmf-bin w3m par2 yubikey-manager qrencode tasksel jq xxd sloccount dosfstools apt-utils git-filter-repo qalc apt-transport-https tcl tk libgdl-3-5 libgdl-3-common > /quicklog.tmp 2>&1
+	_aptGetInstall procps strace sudo wget gpg curl pigz pixz bash aria2 git git-lfs bc nmap socat sockstat rsync net-tools uuid-runtime iperf3 vim man-db gnulib libtool libtool-bin intltool libgts-dev netcat-openbsd iperf axel unionfs-fuse debootstrap util-linux screen gawk build-essential flex libelf-dev libncurses-dev autoconf libudev-dev dwarves pahole cmake gh libusb-dev libusb-1.0 setserial libffi-dev libusb-1.0-0 libusb-1.0-0-dev libusb-1.0-doc pkg-config crudini bsdutils findutils v4l-utils libevent-dev libjpeg-dev libbsd-dev libusb-1.0 gdb libbabeltrace1 libc6-dbg libsource-highlight-common libsource-highlight4v5 initramfs-tools dmidecode p7zip p7zip-full unzip zip lbzip2 jp2a dnsutils bind9-dnsutils live-boot mktorrent gdisk lz4 mawk nano bison libelf-dev elfutils patch tar gzip bzip2 librecode0 sed texinfo udftools wondershaper sysbench libssl-dev cpio pv expect libfuse2 wipe iputils-ping btrfs-progs btrfs-compsize zstd zlib1g nilfs-tools coreutils sg3-utils kpartx openssl growisofs udev cryptsetup parted e2fsprogs xz-utils libreadline8 libreadline-dev mkisofs genisoimage wodim eject hdparm sdparm php cifs-utils debhelper nsis dos2unix fuse-overlayfs xorriso squashfs-tools grub-pc-bin grub-efi-amd64-bin mtools squashfs-tools squashfs-tools-ng fdisk lsof usbutils aptitude recode libpotrace0 libwmf-bin w3m par2 yubikey-manager qrencode tasksel jq xxd sloccount dosfstools apt-utils git-filter-repo qalc apt-transport-https tcl tk libgdl-3-5 libgdl-3-common > /quicklog.tmp 2>&1
 	tail /quicklog.tmp
 	rm -f /quicklog.tmp
 
@@ -13758,6 +13791,14 @@ _get_workarounds() {
 _get_npm() {
     _mustGetSudo
 
+    if _if_cygwin
+    then
+        ! type npm > /dev/null 2>&1 && echo 'request: https://github.com/coreybutler/nvm-windows/releases' && exit 1
+
+        type npm > /dev/null 2>&1
+        return
+    fi
+
     ##sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y curl
     _getDep curl
 
@@ -13771,6 +13812,9 @@ _get_npm() {
     #sudo -n npm install -g @openai/codex
     ##npm install -g @anthropic-ai/claude-code
     #sudo -n npm install -g @anthropic-ai/claude-code
+
+    ! type npm > /dev/null 2>&1 && exit 1
+    return 0
 }
 
 
@@ -14893,6 +14937,9 @@ _custom_ubcp_prog() {
 }
 _custom_ubcp_sequence() {
 	_cygwin_workaround_dev_stderr
+
+    local functionEntryPWD
+    functionEntryPWD="$PWD"
     
     _messageNormal '_custom_ubcp: apt-cyg --quiet'
 	_messagePlain_probe apt-cyg --quiet install ImageMagick
@@ -14902,6 +14949,74 @@ _custom_ubcp_sequence() {
 	_messageNormal '_custom_ubcp: pip3'
 	_messagePlain_probe pip3 install piexif
     pip3 install piexif 2>&1
+
+
+
+    _messageNormal '_custom_ubcp: runpodctl'
+
+    #wget -qO- 'https://cli.runpod.net' | sed 's/\[ "\$EUID" -ne 0 \]/false/' | bash
+
+    mkdir -p "$HOME"/core/installations
+    cd "$HOME"/core/installations
+    _gitBest clone --recursive --depth 1 git@github.com:runpod/runpodctl.git
+    
+    cd "$HOME"/bin/
+    rm -f runpodctl.exe
+    #wget 'https://github.com/runpod/runpodctl/releases/download/v1.14.3/runpodctl-windows-amd64.exe' -O runpodctl.exe
+    wget 'https://github.com/runpod/runpodctl/releases/download/v1.14.4/runpodctl-windows-amd64.exe' -O runpodctl.exe
+    chmod ugoa+rx runpodctl.exe
+
+    cd "$functionEntryPWD"
+
+
+
+    # https://github.com/asciinema/asciinema/issues/467
+    # wsl asciinema rec -c cmd.exe
+    # https://github.com/Watfaq/PowerSession-rs
+    _messageNormal '_custom_ubcp: PowerSession - asciinema alternative for MSWindows'
+
+    mkdir -p "$HOME"/core/installations
+    cd "$HOME"/core/installations
+    _gitBest clone --recursive --depth 1 git@github.com:Watfaq/PowerSession-rs.git
+    
+    cd "$HOME"/bin/
+    rm -f PowerSession.exe
+    wget 'https://github.com/Watfaq/PowerSession-rs/releases/latest/download/PowerSession.exe' -O PowerSession.exe
+    chmod ugoa+rx PowerSession.exe
+
+
+    cd "$functionEntryPWD"
+
+
+
+    # https://gitlab.com/saalen/ansifilter/-/releases
+    # http://andre-simon.de/zip/ansifilter-2.21-x64.zip
+    # https://web.archive.org/web/20250618063648/http://andre-simon.de/zip/ansifilter-2.21-x64.zip
+    _messageNormal '_custom_ubcp: ansifilter'
+
+    mkdir -p "$HOME"/core/installations
+    cd "$HOME"/core/installations
+    wget 'https://web.archive.org/web/20250618063648/http://andre-simon.de/zip/ansifilter-2.21-x64.zip'
+    if [[ $(sha256sum ansifilter-2.21-x64.zip | cut -f1 -d' ' | tr -dc 'a-fA-F0-9') != '57624ae40be4c9173937d15c97f68413daa271a0ec2248ec83394f220b88adb9' ]]
+    then
+        rm -f ansifilter-2.21-x64.zip
+    else
+        unzip -o ansifilter-2.21-x64.zip
+        rm -f ansifilter-2.21-x64.zip
+        cd ansifilter-2.21-x64
+        chmod ugoa+rx ansifilter.exe
+        chmod ugoa+rx ansifilter-gui.exe
+        #cp -a ansifilter.exe "$HOME"/bin/ansifilter.exe
+        #cp -a ansifilter-gui.exe "$HOME"/bin/ansifilter-gui.exe
+        mv -f ansifilter.exe "$HOME"/bin/ansifilter.exe
+        mv -f ansifilter-gui.exe "$HOME"/bin/ansifilter-gui.exe
+    fi
+
+    cd "$functionEntryPWD"
+
+
+
+    cd "$functionEntryPWD"
 
     _cygwin_workaround_dev_stderr
 	_custom_ubcp_prog "$@"
@@ -15056,6 +15171,225 @@ _stopwatch() {
 	[[ "$currentExitStatus_self" != "0" ]] && return "$currentExitStatus_self"
 	return 0
 }
+
+
+
+
+
+
+_setup_asciinema_convert() {
+    _mustGetSudo
+
+    _get_npm
+
+    if _if_cygwin
+    then
+        # MSW user permissions seems sufficient to call npm .
+        sudo() {
+            [[ "$1" == "-n" ]] && shift
+            "$@"
+        }
+    fi
+
+    sudo -n npm install -g asciicast2gif
+
+    if ! _if_cygwin
+    then
+        pip3 install --break-system-packages term2md
+        sudo -n pip3 install --break-system-packages term2md
+    fi
+
+    if _if_cygwin
+    then
+        #pip3 install --quiet --no-input --no-build-isolation -U term2md
+        pip3 install --no-input --no-build-isolation -U term2md
+    fi
+
+
+    _getDep perl
+
+    _getDep sed
+
+
+    return 0
+}
+
+#_asciinema_record 'command' [./rec.log]
+#./ubiquitous_bash.sh _asciinema_record "/home/root/'a b'/ubiquitous_bash.sh _scope ." "record.txt"
+#./ubiquitous_bash.sh _asciinema_record '/home/root/"a b"/ubiquitous_bash.sh _scope .' "record.txt"
+#./ubiquitous_bash.sh _asciinema_record "bash" "record.txt"
+#./ubiquitous_bash.sh _asciinema_record 'echo "$PATH"' "record.txt"
+#./ubiquitous_bash.sh _asciinema_record 'echo "$safeTmp"' "record.txt"
+_asciinema_record() {
+    local current_record_file
+    current_record_file="$2"
+    if ( [[ -d "$current_record_file" ]] || { [[ -L "$current_record_file" ]] && [[ -d "$(readlink -f "$current_record_file")" ]]; } )
+    then
+        current_record_file="$current_record_file"/rec_$(date +%Y-%m-%d.%H).log
+        [[ -e "$current_record_file"/_local ]] && current_record_file="$current_record_file"/_local/rec_$(date +%Y-%m-%d.%H).log
+    fi
+    if [[ "$current_record_file" == "" ]]
+    then
+        current_record_file=./rec_$(date +%Y-%m-%d.%H).log
+    fi
+
+    rm -f "$current_record_file" > /dev/null 2>&1
+
+    # DUBIOUS - cannot directly inherit Cygwin/MSW environment, functions, session, "$safeTmp", etc. May be usable with '.embed.sh' or similar.
+    # Otherwise maybe the best asciinema backend for Cygwin/MSW .
+    # https://github.com/asciinema/asciinema/issues/467
+    if _if_cygwin && wsl -d ubdist true > /dev/null 2>&1 && ! wsl -d ubdist false > /dev/null 2>&1 && [[ force_asciinema_disable_wsl2 != "true" ]]
+    then
+        local current_bin_cmd_wsl
+        current_bin_cmd_wsl=$(type -P cmd 2>/dev/null)
+        current_bin_cmd_wsl=$(cygpath --mixed "$current_bin_cmd_wsl")
+        current_bin_cmd_wsl=$(wsl -d ubdist wslpath "$current_bin_cmd_wsl")
+
+        local current_bin_bash_wsl
+        current_bin_bash_wsl=$(cygpath --mixed /bin/bash)
+        #current_bin_bash_wsl=$(wsl -d ubdist wslpath "$current_bin_bash_wsl")
+
+
+
+        # ### Backend: WSL2 .
+
+        #./ubiquitous_bash.sh _asciinema_record "/home/root/'a b'/ubiquitous_bash.sh _scope ." "record.txt"
+        #_messagePlain_probe_safe wsl -d ubdist asciinema rec --command "$current_bin_cmd_wsl"' /C '"$current_bin_bash_wsl"' -c "'"$1"'"' "$current_record_file"
+        #wsl -d ubdist asciinema rec --command "$current_bin_cmd_wsl"' /C '"$current_bin_bash_wsl"' -c "'"$1"'"' "$current_record_file"
+        #return
+        
+        #./ubiquitous_bash.sh _asciinema_record 'echo "$PATH"' "record.txt"
+        #./ubiquitous_bash.sh _asciinema_record '/home/root/"a b"/ubiquitous_bash.sh _scope .' "record.txt"
+        _messagePlain_probe_safe wsl -d ubdist asciinema rec --command "$current_bin_cmd_wsl"' /C '"$current_bin_bash_wsl"' -c '"'""$1""'" "$current_record_file"
+        wsl -d ubdist asciinema rec --command "$current_bin_cmd_wsl"' /C '"$current_bin_bash_wsl"' -c '"'""$1""'" "$current_record_file"
+        return
+
+
+        
+    fi
+
+    # https://github.com/asciinema/asciinema/issues/467
+    if _if_cygwin && type PowerSession > /dev/null 2>&1 && [[ force_asciinema_disable_native != "true" ]]
+    then
+        #PowerSession rec --command 'bash ./ubiquitous_bash.sh _scope .' "$current_record_file"
+
+        # Discouraged. Tends to record the 'clear' command, etc, causing inconvenience.
+        #wsl asciinema rec -c '~/.ubcore/ubiquitous_bash/ubcore.sh _powershell C:\_bash'
+
+        # CAUTION: Native MSW calling bash directly through cmd/powershell directly is STRONGLY DISCOURAGED.
+        # Do NOT use such tricks for Python, etc. Do NOT rely on such tricks for necessary functionality. Instrumentation ONLY.
+        local current_bin_bash=$(cygpath -w /bin/bash | sed 's/\\/\\\\/g')
+
+
+        local current_bin_powershell
+        #current_bin_powershell=$(_discover_powershell)
+        #current_bin_powershell=$(type -P powershell)
+        #current_bin_powershell=$(cygpath -w "$current_bin_powershell")
+        current_bin_powershell="powershell"
+
+        ##_powershell -Command "$current_bin_bash"" -c '"'bash ./ubiquitous_bash.sh _scope .'"'"
+        ##PowerSession rec --command "$current_bin_powershell"' -Command '"$current_bin_bash"" -c '"' ./ubiquitous_bash.sh _scope . '"'" "$current_record_file"
+        #PowerSession rec --command "$current_bin_powershell"' -Command '"$current_bin_bash"" -c '"''"$1"''"'" "$current_record_file"
+        #return
+
+        local current_bin_cmd
+        current_bin_cmd="cmd"
+        #"$current_bin_cmd" /C "$current_bin_bash" '-c' 'bash ./ubiquitous_bash.sh _scope .'
+        #PowerSession rec --command  "$current_bin_cmd"' /C '"$current_bin_bash"" '-c' ""'"'./ubiquitous_bash.sh _scope .'"'" "$current_record_file"
+        #PowerSession rec --command  "$current_bin_cmd"' /C '"$current_bin_bash"" '-c' ""'"''"$1"''"'" "$current_record_file"
+        #return
+
+
+
+        #PowerSession rec --command "cmd /C C:\\core\\infrastructure\\ubcp\\cygwin\\bin\\bash.exe /home/root/'a b'/ubiquitous_bash.sh _scope ." record.txt
+
+        #PowerSession rec --command "powershell -Command C:\\core\\infrastructure\\ubcp\\cygwin\\bin\\bash.exe /home/root/'a b'/ubiquitous_bash.sh _scope ." record.txt
+        #PowerSession rec --command "$current_bin_powershell -Command $current_bin_bash $1" "$current_record_file"
+
+
+
+        # ### Backend: Native/MSWindows - cmd .
+
+        #./ubiquitous_bash.sh _asciinema_record "/home/root/'a b'/ubiquitous_bash.sh _scope ." "record.txt"
+        #_messagePlain_probe_safe PowerSession rec --command "$current_bin_cmd"' /C '"$current_bin_bash"' -c "'"$1"'"' "$current_record_file"
+        #PowerSession rec --command "$current_bin_cmd"' /C '"$current_bin_bash"' -c "'"$1"'"' "$current_record_file"
+        #return
+
+        #./ubiquitous_bash.sh _asciinema_record '/home/root/"a b"/ubiquitous_bash.sh _scope .' "record.txt"
+        #./ubiquitous_bash.sh _asciinema_record 'echo "$safeTmp"' "record.txt"
+        _messagePlain_probe_safe PowerSession rec --command "$current_bin_cmd"' /C '"$current_bin_bash"' -c '"'""$1""'" "$current_record_file"
+        PowerSession rec --command "$current_bin_cmd"' /C '"$current_bin_bash"' -c '"'""$1""'" "$current_record_file"
+        return
+
+
+
+        #_messagePlain_probe_safe PowerSession rec --command "$current_bin_powershell"' -Command '"$current_bin_bash"' -c "'"$1"'"' "$current_record_file"
+        #PowerSession rec --command "$current_bin_powershell"' -Command '"$current_bin_bash"' -c "'"$1"'"' "$current_record_file"
+        #_messagePlain_probe_safe PowerSession rec --command "$current_bin_powershell"' -Command '"$current_bin_bash"' -c '"'""$1""'" "$current_record_file"
+        #PowerSession rec --command "$current_bin_powershell"' -Command '"$current_bin_bash"' -c '"'""$1""'" "$current_record_file"
+
+
+
+        #PowerSession rec --command powershell' -Command "C:\\core\\infrastructure\\ubcp\\cygwin\\bin\\bash.exe" "-c" ''"/home/root/'a b'/ubiquitous_bash.sh _scope ."' record.txt
+        #PowerSession rec --command powershell' -Command "C:\\core\\infrastructure\\ubcp\\cygwin\\bin\\bash.exe" "-c" '"\"/home/root/'a b'/ubiquitous_bash.sh _scope .\"" record.txt
+        #PowerSession rec --command powershell' -Command "C:\\core\\infrastructure\\ubcp\\cygwin\\bin\\bash.exe" "-c" ''"\"echo x\""' record.txt
+        #PowerSession rec --command powershell' -Command "C:\\core\\infrastructure\\ubcp\\cygwin\\bin\\bash.exe" "-c" "\"echo x\""' record.txt
+        #PowerSession rec --command powershell' -Command "C:\\core\\infrastructure\\ubcp\\cygwin\\bin\\bash.exe" "-c" "'"'echo x'"'"' record.txt
+        #PowerSession rec --command powershell' -Command "C:\\core\\infrastructure\\ubcp\\cygwin\\bin\\bash.exe" "-c" "\"'"echo x"'\""' record.txt
+
+
+
+        # Backend: Native/MSWindows - powershell .
+
+        #./ubiquitous_bash.sh _asciinema_record '/home/root/"a b"/ubiquitous_bash.sh _scope .' "record.txt"
+        ##
+        ##
+        #
+        #./ubiquitous_bash.sh _asciinema_record "/home/root/'a b'/ubiquitous_bash.sh _scope ." "record.txt"
+        #_messagePlain_probe_safe PowerSession rec --command powershell' -Command "C:\\core\\infrastructure\\ubcp\\cygwin\\bin\\bash.exe" "-c" "\"'"$1"'\""' "$current_record_file"
+        #PowerSession rec --command powershell' -Command "C:\\core\\infrastructure\\ubcp\\cygwin\\bin\\bash.exe" "-c" "\"'"$1"'\""' "$current_record_file"
+        #return
+
+
+
+    fi
+
+    asciinema rec --command "$1" "$current_record_file"
+}
+_record() {
+    _asciinema_record "$@"
+}
+
+
+
+_asciinema_markdown() {
+    # ATTRIBUTION-AI: ChatGPT o3-pro , OpenAI codex-mini  2025-06-18  (partially)
+
+    echo
+
+    #asciinema cat "$1" | perl -pe 's/\x07//g && s/^[^\r]*\r//' | term2md
+
+
+    if _if_cygwin
+    then
+        wsl -d ubdist asciinema cat "$@" | perl -pe 's/\x07//g && s/^[^\r]*\r//' | ansifilter --html | sed 's/background-color:#000000;//g' | sed -n '/<pre>/,/<\/pre>/p'
+        return
+    fi
+
+    asciinema cat "$@" | perl -pe 's/\x07//g && s/^[^\r]*\r//' | ansifilter --html | sed 's/background-color:#000000;//g' | sed -n '/<pre>/,/<\/pre>/p'
+}
+_markdown() {
+    _asciinema_markdown "$@"
+}
+
+
+
+
+
+
+
+
+
 
 
 
@@ -17477,14 +17811,14 @@ _fakeHome() {
 	fakeHomeENVvars+=(SESSION_MANAGER="$SESSION_MANAGER" WINDOWID="$WINDOWID" QT_ACCESSIBILITY="$QT_ACCESSIBILITY" COLORTERM="$COLORTERM" XDG_SESSION_PATH="$XDG_SESSION_PATH" LANGUAGE="$LANGUAGE"  SHELL_SESSION_ID="$SHELL_SESSION_ID" DESKTOP_SESSION="$DESKTOP_SESSION" XCURSOR_SIZE="$XCURSOR_SIZE" GTK_MODULES="$GTK_MODULES" XDG_SEAT="$XDG_SEAT" XDG_SESSION_DESKTOP="$XDG_SESSION_DESKTOP" XDG_SESSION_TYPE="$XDG_SESSION_TYPE" XDG_CURRENT_DESKTOP="$XDG_CURRENT_DESKTOP" KONSOLE_DBUS_SERVICE="$KONSOLE_DBUS_SERVICE" PYTHONSTARTUP="$PYTHONSTARTUP" KONSOLE_DBUS_SESSION="$KONSOLE_DBUS_SESSION" PROFILEHOME="$PROFILEHOME" XDG_SEAT_PATH="$XDG_SEAT_PATH" KDE_SESSION_UID="$KDE_SESSION_UID" XDG_SESSION_CLASS="$XDG_SESSION_CLASS" COLORFGBG="$COLORFGBG" KDE_SESSION_VERSION="$KDE_SESSION_VERSION" SHLVL="$SHLVL" LC_MEASUREMENT="$LC_MEASUREMENT" XDG_VTNR="$XDG_VTNR" XDG_SESSION_ID="$XDG_SESSION_ID" GS_LIB="$GS_LIB" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" LC_TIME="$LC_TIME" QT_AUTO_SCREEN_SCALE_FACTOR="$QT_AUTO_SCREEN_SCALE_FACTOR" XCURSOR_THEME="$XCURSOR_THEME" KDE_FULL_SESSION="$KDE_FULL_SESSION" KONSOLE_PROFILE_NAME="$KONSOLE_PROFILE_NAME" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" KONSOLE_DBUS_WINDOW="$KONSOLE_DBUS_WINDOW" LS_COLORS="$LS_COLORS")
 	
 	fakeHomeENVvars+=(QT_QPA_PLATFORMTHEME="$QT_QPA_PLATFORMTHEME")
+
+	[[ "$devfast" != "" ]] && fakeHomeENVvars+=(devfast="$devfast")
 	
 	
 	if type dbus-run-session > /dev/null 2>&1 && [[ "$fakeHome_dbusRunSession_DISABLE" != "true" ]]
 	then
 		fakeHomeENVvars+=(dbus-run-session)
 	fi
-
-	[[ "$devfast" != "" ]] && fakeHomeENVvars+=(devfast="$devfast")
 	
 	#env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP='KDE' XDG_CURRENT_DESKTOP='KDE' realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" sessionid="$sessionid" scriptAbsoluteFolder="$scriptAbsoluteFolder" realSessionID="$realSessionID" realScriptAbsoluteLocation="$realScriptAbsoluteLocation" realScriptAbsoluteFolder="$realScriptAbsoluteFolder" dbus-run-session "$@"
 	##env -i DISPLAY="$DISPLAY" XAUTH="$XAUTH" XAUTHORITY="$XAUTHORITY" XSOCK="$XSOCK" XDG_SESSION_DESKTOP='KDE' XDG_CURRENT_DESKTOP='KDE' realHome="$realHome" keepFakeHome="$keepFakeHome" HOME="$HOME" setFakeHome="$setFakeHome" TERM="${TERM}" SHELL="${SHELL}" PATH="${PATH}" _JAVA_OPTIONS=${_JAVA_OPTIONS}scriptAbsoluteLocation="$scriptAbsoluteLocation" scriptAbsoluteFolder="$scriptAbsoluteFolder" dbus-run-session "$@"
@@ -18504,7 +18838,7 @@ _set_msw_python_procedure() {
     return 0
 }
 
-set_msw_python() {
+_set_msw_python() {
     _set_msw_python_3_10 "$@"
 }
 _set_msw_python_3_10() {
@@ -19180,7 +19514,7 @@ _set_nix_python_procedure() {
     return 0
 }
 
-set_nix_python() {
+_set_nix_python() {
     _set_nix_python_3 "$@"
 }
 _set_nix_python_3() {
@@ -26734,14 +27068,22 @@ _visualPrompt() {
 		#export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_nixShell"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '	
 	#fi
 	
+	# https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
+	# Slightly darker yellow will be more printable on white background (ie. Pandoc rendering from HTML from asciinema cat ).
+	#01;33m
+	#38;5;214m
+	#
+	#\[\033[01;33m\]
+	#'\[\e[01;33m\e[38;5;214m\]'
+	#'\[\033[01;33m\033[38;5;214m\]'
 	if _if_cygwin
 	then
-		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(([[ "$VIRTUAL_ENV_PROMPT" != "" ]] && echo -n "$VIRTUAL_ENV_PROMPT") || date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_specialInfo"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]\[\033[37m\]\w\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '
+		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\033[38;5;214m\]\u\[\033[01;32m\]@'"$currentHostname"'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(([[ "$VIRTUAL_ENV_PROMPT" != "" ]] && echo -n "$VIRTUAL_ENV_PROMPT") || date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_specialInfo"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]\[\033[37m\]\w\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '
 	elif ( uname -a | grep -i 'microsoft' > /dev/null 2>&1 || uname -a | grep -i 'WSL2' > /dev/null 2>&1 )
 	then
-		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"-wsl2'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(([[ "$VIRTUAL_ENV_PROMPT" != "" ]] && echo -n "$VIRTUAL_ENV_PROMPT") || date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_specialInfo"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]\[\033[37m\]\w\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '
+		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\033[38;5;214m\]\u\[\033[01;32m\]@'"$currentHostname"-wsl2'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(([[ "$VIRTUAL_ENV_PROMPT" != "" ]] && echo -n "$VIRTUAL_ENV_PROMPT") || date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_specialInfo"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]\[\033[37m\]\w\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '
 	else
-		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\]\u\[\033[01;32m\]@'"$currentHostname"'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(([[ "$VIRTUAL_ENV_PROMPT" != "" ]] && echo -n "$VIRTUAL_ENV_PROMPT") || date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_specialInfo"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '	
+		export PS1='\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[01;31m\]${?}:${currentChroot:+($currentChroot)}\[\033[01;33m\033[38;5;214m\]\u\[\033[01;32m\]@'"$currentHostname"'\[\033[01;36m\]\[\033[01;34m\])\[\033[01;36m\]\[\033[01;34m\]-'"$prompt_cloudNetName"'(\[\033[01;35m\]$(([[ "$VIRTUAL_ENV_PROMPT" != "" ]] && echo -n "$VIRTUAL_ENV_PROMPT") || date +%H:%M:%S\.%d)\[\033[01;34m\])\[\033[01;36m\]|\[\033[00m\]'"$prompt_specialInfo"'\n\[\033[01;40m\]\[\033[01;36m\]\[\033[01;34m\]|\[\033[37m\][\w]\[\033[00m\]\n\[\033[01;36m\]\[\033[01;34m\]|$([[ "$PS1_lineNumber" == "1" ]] && echo -e -n '"'"'\[\033[01;36m\]'"'"'$PS1_lineNumber || echo -e -n $PS1_lineNumber)\[\033[01;34m\]) \[\033[36m\]'""'>\[\033[00m\] '	
 	fi
 	
 	#export PS1="$prompt_specialInfo""$PS1"
@@ -27031,7 +27373,17 @@ _setup_ollama_model_augment_sequence() {
 	
 	# https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/tree/main
 	# https://web.archive.org/web/20240831194035/https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/tree/main
-	# Explicitly states 'License: llama3.1'. Readme file from repository does NOT contradict this.
+	# https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF
+	# https://web.archive.org/web/20250323003504/https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF
+	# https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF
+	# https://web.archive.org/web/20250105072418/https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF
+	# https://huggingface.co/mlabonne/NeuralDaredevil-8B-abliterated
+	# https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF
+	# https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF/tree/main
+	# https://web.archive.org/web/20250526124847/https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF
+	# https://web.archive.org/web/20250206175259/https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF/tree/main
+	#
+	# Explicitly states 'License: llama3.1'. Readme files, etc, from repository does NOT contradict this.
 	
 	# https://www.llama.com/llama3_1/license/
 	# https://huggingface.co/meta-llama/Meta-Llama-3.1-70B-Instruct/blob/main/LICENSE
@@ -27106,26 +27458,69 @@ _setup_ollama_model_augment_sequence() {
 	
 	# TODO: TODO: Intentionally overfit smaller parameter models by reinforcing prompt/response for specific knowledge (eg. plasma recombiation light emission physics) and reasoning (eg. robot motor control).
 	
+
+	# Reducing 'Llama-augment' model size by more qunatization than Q4_K_M mostly benefits use cases possibly alongside other AI LLM models which may consume nearly all available RAM, VRAM, etc.
 	
-	# TODO: There may or may not be more track record with this slightly different model, using Q4-K-M quantization.
+	# May or may not be more track record with this slightly different model, using Q4-K-M quantization.
 	# https://huggingface.co/grimjim/Llama-3.1-8B-Instruct-abliterated_via_adapter-GGUF
 	
-	# TODO: Consider alternative quantization, especially IQ2-M, IQ4-XS. Beware Q4-K-M may have some community testing of important edge cases already.
+	# Alternative quantization, especially IQ2-M, IQ4-XS. Beware Q4-K-M may have some community testing of important edge cases already.
 	# https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/tree/main
+
+	# Given the 'augment' use that has been proven, using an AI LLM similarly to 'sed', 'grep', etc, already requiring a second 'gibberish' detection step, slight degradation of reliability should cause no issues. Recommended quantizations are IQ3_XXS (~5% per ~67% less reliability), IQ2_XXS (~20% per 67% less reliability).
+	#  The '~20% per 67%' less reliability is based on the idea that for a problem or problem set the AI LLM may solve correctly 67% of the time, the rate of correct solutions will be reduced by ~20% .
+	#  https://raw.githubusercontent.com/matt-c1/llama-3-quant-comparison/refs/heads/main/plots/MMLU-Correctness-vs-Model-Size.svg
+	# https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-i1-GGUF/tree/main
+
+
 	
-	echo 'FROM ./llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf
+	# Default 'temperature' may have previously been 0.8 .
+	# https://github.com/ollama/ollama/issues/6410?utm_source=chatgpt.com
+	# https://github.com/ollama/ollama/blob/main/api/types.go#L657
+	echo 'FROM ./NeuralDaredevil-8B-abliterated.Q3_K_M.gguf
 PARAMETER num_ctx 6144
+
+TEMPLATE "{{- range .Messages }}<|start_header_id|>{{ .Role }}<|end_header_id|>
+
+{{ .Content }}<|eot_id|>
+{{- end }}<|start_header_id|>assistant<|end_header_id|>
+
+"
+PARAMETER num_ctx 6144
+PARAMETER stop <|start_header_id|>
+PARAMETER stop <|end_header_id|>
+PARAMETER stop <|eot_id|>
+PARAMETER temperature 0.7
+
 ' > Llama-augment.Modelfile
 
 	_here_license-Llama-augment >> Llama-augment.Modelfile
 	
-	#wget 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf'
-	aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf'
-	[[ ! -e 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' --disable-ipv6=true
+	##wget 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf'
+	#aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf'
+	#[[ ! -e 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' --disable-ipv6=true
 	
-	if [[ ! -e 'llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf' ]]
+	# DUBIOUS . May not be compatible with ollama , etc.
+	##wget 'https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-i1-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ2_XXS.gguf'
+	#aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf' 'https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-i1-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf'
+	#[[ ! -e 'Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf' 'https://huggingface.co/mradermacher/Meta-Llama-3.1-8B-Instruct-abliterated-i1-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf' --disable-ipv6=true
+
+	# DUBIOUS . May not be compatible with ollama , etc.
+	##wget 'https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf'
+	#aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf' 'https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf'
+	#[[ ! -e 'Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf' 'https://huggingface.co/bartowski/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf' --disable-ipv6=true
+
+	##wget 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf'
+	#aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf'
+	#[[ ! -e 'meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf' 'https://huggingface.co/mlabonne/Meta-Llama-3.1-8B-Instruct-abliterated-GGUF/resolve/main/meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf' --disable-ipv6=true
+
+	#wget 'https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF/resolve/main/NeuralDaredevil-8B-abliterated.Q3_K_M.gguf'
+	aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'NeuralDaredevil-8B-abliterated.Q3_K_M.gguf' 'https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF/resolve/main/NeuralDaredevil-8B-abliterated.Q3_K_M.gguf'
+	[[ ! -e 'NeuralDaredevil-8B-abliterated.Q3_K_M.gguf' ]] && aria2c --log=- --log-level=info -x "3" --async-dns=false -o 'NeuralDaredevil-8B-abliterated.Q3_K_M.gguf' 'https://huggingface.co/QuantFactory/NeuralDaredevil-8B-abliterated-GGUF/resolve/main/NeuralDaredevil-8B-abliterated.Q3_K_M.gguf' --disable-ipv6=true
+	
+	if [[ ! -e 'NeuralDaredevil-8B-abliterated.Q3_K_M.gguf' ]]
 	then
-		_wget_githubRelease_join "soaringDistributions/Llama-augment_bundle" "" "llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf"
+		_wget_githubRelease_join "soaringDistributions/Llama-augment_bundle" "" "NeuralDaredevil-8B-abliterated.Q3_K_M.gguf"
 	fi
 	
 	_service_ollama
@@ -27137,6 +27532,11 @@ PARAMETER num_ctx 6144
 		! echo | sudo -n tee /AI-Llama-augment > /dev/null && _messagePlain_bad 'bad: FAIL: echo | sudo -n tee /AI-Llama-augment' && _messageFAIL
 	fi
 
+	rm -f NeuralDaredevil-8B-abliterated.Q3_K_M.gguf
+	rm -f meta-llama-3.1-8b-instruct-abliterated.Q2_K.gguf
+	rm -f Meta-Llama-3.1-8B-Instruct-abliterated-IQ2_M.gguf
+	rm -f Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ2_XXS.gguf
+	rm -f Meta-Llama-3.1-8B-Instruct-abliterated.i1-IQ3_XXS.gguf
 	rm -f llama-3.1-8b-instruct-abliterated.Q4_K_M.gguf
 	rm -f Llama-augment.Modelfile
 	
@@ -27366,6 +27766,8 @@ _service_ollama_augment() {
 	local current_OLLAMA_HOST
 	current_OLLAMA_HOST="$OLLAMA_HOST"
 	[[ "$current_OLLAMA_HOST" == "" ]] && current_OLLAMA_HOST='127.0.0.1:11434'
+
+	wget --timeout=1 --tries=3 'http://'"$current_OLLAMA_HOST" -q -O - > /dev/null 2>&1 && return 0
 	
 	if _if_cygwin && ! wget --timeout=1 --tries=3 'http://'"$current_OLLAMA_HOST" -q -O - > /dev/null 2>&1
 	then
@@ -27528,6 +27930,22 @@ _ollama_run_augment() {
 
 	! _service_ollama_augment && return 1
 
+	if [[ "$OLLAMA_HOST" != "" ]] && ! type -P ollama > /dev/null 2>&1
+	then
+		local current_api_timeout="$OLLAMA_TIMEOUT"
+		[[ "$current_api_timeout" == "" ]] && current_api_timeout=7200
+		#jq -Rs '{model:"Llama-augment", prompt:., stream: false}' | _timeout "$current_api_timeout" curl -fsS --max-time "$current_api_timeout" -X POST -H "Content-Type: application/json" --data-binary @- http://"$OLLAMA_HOST"/api/generate | jq -r '.response'
+		#jq -Rs '{model:"Llama-augment", prompt:., stream: true}' | _timeout "$current_api_timeout" curl -fsS --no-buffer --max-time "$current_api_timeout" -X POST -H "Content-Type: application/json" --data-binary @- http://"$OLLAMA_HOST"/api/generate | jq -rj --unbuffered 'if .done? then "\n" elif .response? then .response else empty end'
+		if [[ "$*" == "" ]]
+		then
+			jq -Rs '{model:"Llama-augment", prompt:., stream: true}' | _timeout "$current_api_timeout" curl -fsS --no-buffer --max-time "$current_api_timeout" -X POST -H "Content-Type: application/json" --data-binary @- http://"$OLLAMA_HOST"/api/generate | jq -rj --unbuffered 'if .done? then "\n" elif .response? then .response else empty end'
+			return
+		else
+			_safeEcho_newline "$@" | jq -Rs '{model:"Llama-augment", prompt:., stream: true}' | _timeout "$current_api_timeout" curl -fsS --no-buffer --max-time "$current_api_timeout" -X POST -H "Content-Type: application/json" --data-binary @- http://"$OLLAMA_HOST"/api/generate | jq -rj --unbuffered 'if .done? then "\n" elif .response? then .response else empty end'
+			return
+		fi
+	fi
+
 	if ! ollama show Llama-augment > /dev/null 2>&1
 	then
 		"$scriptAbsoluteLocation" _setup_ollama_model_augment_sequence > /dev/null 2>&1
@@ -27619,6 +28037,22 @@ _ollama_run_dev() {
     
 
 	! _service_ollama_augment && return 1
+
+	if [[ "$OLLAMA_HOST" != "" ]] && ! type -P ollama > /dev/null 2>&1
+	then
+		local current_api_timeout="$OLLAMA_TIMEOUT"
+		[[ "$current_api_timeout" == "" ]] && current_api_timeout=7200
+		#jq -Rs '{model:"hf.co/bartowski/mistralai_Devstral-Small-2505-GGUF:IQ4_XS-g41", prompt:., stream: false}' | _timeout "$current_api_timeout" curl -fsS --max-time "$current_api_timeout" -X POST -H "Content-Type: application/json" --data-binary @- http://"$OLLAMA_HOST"/api/generate | jq -r '.response'
+		#jq -Rs '{model:"hf.co/bartowski/mistralai_Devstral-Small-2505-GGUF:IQ4_XS-g41", prompt:., stream: true}' | _timeout "$current_api_timeout" curl -fsS --no-buffer --max-time "$current_api_timeout" -X POST -H "Content-Type: application/json" --data-binary @- http://"$OLLAMA_HOST"/api/generate | jq -rj --unbuffered 'if .done? then "\n" elif .response? then .response else empty end'
+		if [[ "$*" == "" ]]
+		then
+			jq -Rs '{model:"hf.co/bartowski/mistralai_Devstral-Small-2505-GGUF:IQ4_XS-g41", prompt:., stream: true}' | _timeout "$current_api_timeout" curl -fsS --no-buffer --max-time "$current_api_timeout" -X POST -H "Content-Type: application/json" --data-binary @- http://"$OLLAMA_HOST"/api/generate | jq -rj --unbuffered 'if .done? then "\n" elif .response? then .response else empty end'
+			return
+		else
+			_safeEcho_newline "$@" | jq -Rs '{model:"hf.co/bartowski/mistralai_Devstral-Small-2505-GGUF:IQ4_XS-g41", prompt:., stream: true}' | _timeout "$current_api_timeout" curl -fsS --no-buffer --max-time "$current_api_timeout" -X POST -H "Content-Type: application/json" --data-binary @- http://"$OLLAMA_HOST"/api/generate | jq -rj --unbuffered 'if .done? then "\n" elif .response? then .response else empty end'
+			return
+		fi
+	fi
 
 	if ! ollama show hf.co/bartowski/mistralai_Devstral-Small-2505-GGUF:IQ4_XS-g41 --modelfile > /dev/null 2>&1
 	then
@@ -27761,9 +28195,40 @@ _augment-backend() {
 }
 
 
+_here_bashTool-noOtherInfo() {
+
+	# ATTENTION: NOTICE: Especially with a small model...
+	# Regard this as similar to an analog modem symbol decoder with a filter bank attached to a filter bank used as a delay line.
+	# Negative Prompt (Do not output any other information.
+	#
+	# Positive Prompt (Please state the datum, ), Negative Prompt (do not *include* any other information,), this...
+	# stuff
+	# Negative Prompt (Do not output any other information.)
+	# Positive Prompt (Output only the one line command or parameter.), Negative Prompt (Do not output any other text.), Positive Prompt (Since this is zero-shot tool use, only the one line will be helpful, any other output will be unhelpful.)
+	#
+	# Thus, for good results, your prompt given to 'augment' function should closely resemble this example:
+	# EXAMPLE
+	# Please state the domain name or IP address, do not include any other information, from this bash shellcode command:
+	# ```bash
+	# ssh root@123.123.123.123 -p 122 -i ~/.ssh/id_ed25519
+	# ```
+	#
+	# Such an approach quickly 'dampens' any Positive Prompt 'ringing' or 'overshoot' from a Positive Prompt with a Negative Prompt before any effects can accumulate in the AI LLM model output.
+	#
+	# That said, less quantization of the 'Llama-augment' , Q8_0 instead of Q2_K , will require far less careful such 'dampening'. Given the automation purpose of the 'Llama-augment' model, the tradeoff of requiring more careful prompting is well worthwhile to improve processing speed, etc. Especially since only at most one negative prompt not already automatically added is needed, and only to address a specific nuance in the developer's own Positive Prompt, such as the 'datum' being an address, given that usernames are commonly used with such addresses in HTTP URLs, etc.
+
+
+    cat << 'CZXWXcRMTo8EmM8i4d'
+
+Do not output any other information.
+
+CZXWXcRMTo8EmM8i4d
+}
 
 _here_bashTool-askCommand-ONLY() {
     cat << 'CZXWXcRMTo8EmM8i4d'
+
+Do not output any other information.
 
 Output only the one line command or parameter. Do not output any other text. Since this is zero-shot tool use, only the one line will be helpful, any other output will be unhelpful.
 
@@ -27849,32 +28314,36 @@ CZXWXcRMTo8EmM8i4d
 
 _augment_procedure() {
 	( _messageNormal ' ... augment' >&2 ) > /dev/null
-	
-	cat > "$safeTmp"/input_prompt.txt
 
-	_here_bashTool-askCommand-ONLY > "$safeTmp"/processing-bashTool-askCommand-ONLY.txt
+	[[ "$fastTmp" == "" ]] && local fastTmp="$safeTmp"
+
+	_here_bashTool-noOtherInfo > "$fastTmp"/processing-bashTool-noOtherInfo-ONLY.txt
+	
+	cat > "$fastTmp"/input_prompt.txt
+
+	_here_bashTool-askCommand-ONLY > "$fastTmp"/processing-bashTool-askCommand-ONLY.txt
 
 
 	local currentIteration=0
 	#[[ "$currentIteration" -lt 85 ]]
-	while [[ $(cat "$safeTmp"/processing-bashTool-isGibberish.txt 2>/dev/null | tr -dc 'a-zA-Z0-9' | tr 'A-Z' 'a-z' | tail -c 5 ) != 'valid' ]] && [[ "$currentIteration" -lt 45 ]]
+	while [[ $(cat "$fastTmp"/processing-bashTool-isGibberish.txt 2>/dev/null | tr -dc 'a-zA-Z0-9' | tr 'A-Z' 'a-z' | tail -c 5 ) != 'valid' ]] && [[ "$currentIteration" -lt 45 ]]
 	do
 		( _messagePlain_nominal ' ... augment: '"$currentIteration" >&2 ) > /dev/null
-		cat "$safeTmp"/input_prompt.txt "$safeTmp"/processing-bashTool-askCommand-ONLY.txt | _augment-backend "$@" > "$safeTmp"/output_prompt.txt
+		cat "$fastTmp"/processing-bashTool-noOtherInfo-ONLY.txt "$fastTmp"/input_prompt.txt "$fastTmp"/processing-bashTool-askCommand-ONLY.txt | _augment-backend "$@" > "$fastTmp"/output_prompt.txt
 
-		rm -f "$safeTmp"/processing-bashTool-askGibberish.txt > /dev/null 2>&1
-		if [[ -s "$safeTmp"/output_prompt.txt ]]
+		rm -f "$fastTmp"/processing-bashTool-askGibberish.txt > /dev/null 2>&1
+		if [[ -s "$fastTmp"/output_prompt.txt ]]
 		then
-			_here_bashTool-askGibberish > "$safeTmp"/processing-bashTool-askGibberish.txt
-			cat "$safeTmp"/output_prompt.txt "$safeTmp"/processing-bashTool-askGibberish.txt | _augment-backend "$@" > "$safeTmp"/processing-bashTool-isGibberish.txt
+			_here_bashTool-askGibberish > "$fastTmp"/processing-bashTool-askGibberish.txt
+			cat "$fastTmp"/output_prompt.txt "$fastTmp"/processing-bashTool-askGibberish.txt | _augment-backend "$@" > "$fastTmp"/processing-bashTool-isGibberish.txt
 		fi
 
-		if [[ -e "$safeTmp"/processing-bashTool-isGibberish.txt ]] && [[ $(cat "$safeTmp"/processing-bashTool-isGibberish.txt | tr -dc 'a-zA-Z0-9' | tr 'A-Z' 'a-z' | tail -c 5 ) != 'valid' ]]
+		if [[ -e "$fastTmp"/processing-bashTool-isGibberish.txt ]] && [[ $(cat "$fastTmp"/processing-bashTool-isGibberish.txt | tr -dc 'a-zA-Z0-9' | tr 'A-Z' 'a-z' | tail -c 5 ) != 'valid' ]]
 		then
 			( _messagePlain_warn 'warn: gibberish: ' >&2 ) > /dev/null
-			( cat "$safeTmp"/output_prompt.txt | tr -dc 'a-zA-Z0-9\-_\ \=\+\/\.' >&2 ) > /dev/null
+			( cat "$fastTmp"/output_prompt.txt | tr -dc 'a-zA-Z0-9\-_\ \=\+\/\.' >&2 ) > /dev/null
 			( echo >&2 ) > /dev/null
-			( _messagePlain_probe 'currentGibberish= '$(cat "$safeTmp"/processing-bashTool-isGibberish.txt | head -c 192 | tr -dc 'a-zA-Z0-9') >&2 ) > /dev/null
+			( _messagePlain_probe 'currentGibberish= '$(cat "$fastTmp"/processing-bashTool-isGibberish.txt | head -c 192 | tr -dc 'a-zA-Z0-9') >&2 ) > /dev/null
 			( echo  >&2 ) > /dev/null
 		fi
 		
@@ -27882,7 +28351,7 @@ _augment_procedure() {
 	done
 
 
-	cat "$safeTmp"/output_prompt.txt
+	cat "$fastTmp"/output_prompt.txt
 }
 _augment_sequence() {
 	_start
@@ -27891,9 +28360,161 @@ _augment_sequence() {
 
 	_stop
 }
+# WARNING: DUBIOUS. Unusual, VERY UNUSUAL. Avoids the more appropriate technique of recursively calling the script with the usual separate environment, _stop trap, etc.
+_augment_fast() {
+	(
+		export fastid=$(_uid)
+		export fastTmp="$tmpSelf""$tmpPrefix"/w_"$fastid"
+
+		mkdir -p "$fastTmp"
+		[[ "$tmpSelf" != "$scriptAbsoluteFolder" ]] && echo "$tmpSelf" 2> /dev/null > "$scriptAbsoluteFolder"/__d_$(echo "$fastid" | head -c 16)
+
+		_augment_procedure "$@"
+
+		_safeRMR "$fastTmp"
+		unset fastTmp
+	)
+}
 _augment() {
     "$scriptAbsoluteLocation" _augment_sequence "$@"
 }
+
+
+
+
+# ATTENTION
+# WebUI Codex explains that if the 'current directory' (ie. "$PWD") is under "$safeTmp", '_getAbsolute_criticalDep' , under 'set -e' and some environments, will  '! readlink -f . > /dev/null 2>&1 && exit 1'  due to '.' as "$safeTmp" not existing. This explanation is consistent and may fit with only recursion causing the failure.
+# CLI Codex explains that if the 'current directory' (ie. "$PWD") is under "$safeTmp", '_preserveLog' , under 'set -e' and some environments, fails at  'cp "$logTmp"/* "$permaLog"/ > /dev/null 2>&1'  on non-existent permaLog="$PWD" , logTmp="$safeTmp"/log . This explanation does not fit with only recursion causing the failure.
+#
+# This may have crept up without any possibility of anticipation: this was not causing issues previously, does not seem related to ongoing changes to "ubiquitous_bash" codebase at the time, may be closely related to ongoing 'inherit_errexit' quirks from different bash versions, indeed affects one the most convoluted bash inherited codepaths, and significant differences in bash versions between some possibly relevant environments do apparently exist.
+#
+# Changing current directory to "$scriptAbsoluteFolder" is NOT an acceptable workaround, as the "ubiquitous_bash" script may be imported in another bash session not expecting this, and self-deletion of an "ubiquitous_bash" directory is a VERY valid use case (eg. for installers for which cluttering up a filesystem with yet another 'wget ubiquitous_bash.sh' may be undesirable).
+#
+# In any case, '_stop' with the current directory being the automatically deleted "$safeTmp" , with such recursion as 'factory-ops' is NOT safe.
+# TODO: Other "ubiquitous_bash" functions may also be affected, and should be reviewed ASAP for _stop without  ' cd "$functionEntryPWD" '  .
+# 
+#
+#cd "$functionEntryPWD"
+
+
+___factoryTest_sequence() {
+    _messagePlain_nominal '___factoryTest_sequence'
+    if [[ "$recursionGuard_factory_ops" == "" ]]
+    then
+        _messagePlain_probe '_factory_ops_recursion: from ___factoryTest_sequence'
+        _factory_ops_recursion "$@"
+        return
+    fi
+
+    _start
+	local functionEntryPWD
+	functionEntryPWD="$PWD"
+
+
+    cd "$safeTmp"
+    cp "$scriptAbsoluteFolder"/ubiquitous_bash.sh "$safeTmp"/ubiquitous_bash.sh
+
+    #if [[ "$CI" != "" ]] && [[ "$objectName" == "ubiquitous_bash" ]]
+    #then
+        _messagePlain_probe 'mkdir -p '"$safeTmp"/repo
+        mkdir -p "$safeTmp"/repo
+        #( cd "$safeTmp"/repo ; mkdir -p dummyRepo ; cd dummyRepo ; echo dummy > dummy.txt ; mkdir .git ; echo 'dummy' > .git/dummy.txt )
+        ##( cd "$safeTmp"/repo ; git config --global checkout.workers -1 ; _gitBest clone --depth 1 git@github.com:mirage335-colossus/"$objectName".git ; cd "$safeTmp"/repo/"$objectName" ; _gitBest submodule update --init --depth 1 --recursive )
+        #export safeToDeleteGit="true"
+    #fi
+
+    
+	cd "$functionEntryPWD"
+
+    #export safeToDeleteGit="true"
+    #_messagePlain_probe '_safeRMR "$safeTmp"/repo'
+    #_safeRMR "$safeTmp"/repo
+    _messagePlain_probe '_stop'
+    _stop 0
+}
+___factoryTest_direct() {
+    _messagePlain_nominal '___factoryTest_direct'
+    
+    if [[ "$recursionGuard_factory_ops" == "" ]]
+    then
+        _messagePlain_probe '_factory_ops_recursion: from ___factoryTest_direct'
+        _factory_ops_recursion "$@"
+        return
+    fi
+
+    _messagePlain_probe '"$scriptAbsoluteLocation" ___factoryTest_sequence "$@"'
+    "$scriptAbsoluteLocation" ___factoryTest_sequence "$@"
+}
+
+
+
+
+
+
+
+___factoryTest_skip_recursion1() {
+    _messagePlain_nominal '___factoryTest_skip_recursion1'
+
+    _messagePlain_probe '"$scriptAbsoluteLocation" ___factoryTest_sequence "$@"'
+    "$scriptAbsoluteLocation" ___factoryTest_sequence "$@"
+}
+
+
+
+
+
+
+
+
+___factoryTest_skip_recursion2_sequence() {
+    _messagePlain_nominal '___factoryTest_skip_recursion2_sequence'
+
+    _start
+	local functionEntryPWD
+	functionEntryPWD="$PWD"
+
+    cd "$safeTmp"
+    cp "$scriptAbsoluteFolder"/ubiquitous_bash.sh "$safeTmp"/ubiquitous_bash.sh
+
+    #if [[ "$CI" != "" ]] && [[ "$objectName" == "ubiquitous_bash" ]]
+    #then
+        _messagePlain_probe 'mkdir -p '"$safeTmp"/repo
+        mkdir -p "$safeTmp"/repo
+        #( cd "$safeTmp"/repo ; mkdir -p dummyRepo ; cd dummyRepo ; echo dummy > dummy.txt ; mkdir .git ; echo 'dummy' > .git/dummy.txt )
+        ##( cd "$safeTmp"/repo ; git config --global checkout.workers -1 ; _gitBest clone --depth 1 git@github.com:mirage335-colossus/"$objectName".git ; cd "$safeTmp"/repo/"$objectName" ; _gitBest submodule update --init --depth 1 --recursive )
+        #export safeToDeleteGit="true"
+    #fi
+    
+	cd "$functionEntryPWD"
+
+    #export safeToDeleteGit="true"
+    #_messagePlain_probe '_safeRMR "$safeTmp"/repo'
+    #_safeRMR "$safeTmp"/repo
+    _messagePlain_probe '_stop'
+    _stop 0
+}
+___factoryTest_skip_recursion2() {
+    _messagePlain_nominal '___factoryTest_skip_recursion2'
+
+    _messagePlain_probe '"$scriptAbsoluteLocation" ___factoryTest_skip_recursion2_sequence "$@"'
+    "$scriptAbsoluteLocation" ___factoryTest_skip_recursion2_sequence "$@"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -27933,6 +28554,9 @@ COPY <<EOFSPECIAL /install_ub.sh
 # ###
 # PASTE
 # ###
+
+#[[ -e /.dockerenv ]] && 
+git config --global --add safe.directory '*' > /dev/null 2>&1
 
 if [[ -e /workspace/ubiquitous_bash/ubiquitous_bash.sh ]]
 then
@@ -28005,7 +28629,9 @@ env DEBIAN_FRONTEND=noninteractive apt-get install coreutils -y ;\
 env DEBIAN_FRONTEND=noninteractive apt install python3 python3-pip git -y ;\ 
 env DEBIAN_FRONTEND=noninteractive apt-get install libcurl4-openssl-dev -y ;\ 
 env DEBIAN_FRONTEND=noninteractive apt-get install ffmpeg -y ;\ 
-env DEBIAN_FRONTEND=noninteractive apt-get install asciinema -y
+env DEBIAN_FRONTEND=noninteractive apt-get install asciinema -y ;\ 
+env DEBIAN_FRONTEND=noninteractive apt-get install gifsicle imagemagick apngasm ffmpeg -y ;\ 
+env DEBIAN_FRONTEND=noninteractive apt-get install gifsicle imagemagick apngasm ffmpeg -y webp
 
 
 # ATTRIBUTION-AI: ChatGPT o3  2025-06-05
@@ -28044,13 +28670,14 @@ RUN echo 'net.core.bpf_jit_harden=1' | sudo -n tee /etc/sysctl.d/99-nvidia-worka
 
 #codex
 #claude
-RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y curl ;\ 
-curl -fsSL https://deb.nodesource.com/setup_23.x -o /nodesource_setup.sh ;\ 
-bash /nodesource_setup.sh ;\ 
-env DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs ;\ 
-npm install -g @openai/codex ;\ 
-npm install -g @anthropic-ai/claude-code
-
+#RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y curl ;\ 
+#curl -fsSL https://deb.nodesource.com/setup_23.x -o /nodesource_setup.sh ;\ 
+#bash /nodesource_setup.sh ;\ 
+#env DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs ;\ 
+#npm install -g @openai/codex ;\ 
+#npm install -g @anthropic-ai/claude-code
+RUN /workspace/ubiquitous_bash/ubiquitous_bash.sh _setup_codex ;\ 
+/workspace/ubiquitous_bash/ubiquitous_bash.sh _setup_asciinema_convert
 
 
 # ###
@@ -28128,7 +28755,7 @@ _rm_install_libcudadev_stub-stubOnly() {
     rm -f /opt/libcudadev_stub-stubOnly/*.deb
     rm -f /opt/libcudadev_stub-stubOnly/usr/share/doc/libcuda1/copyright
     rm -f /opt/libcudadev_stub-stubOnly/usr/lib/x86_64-linux-gnu/nvidia/current/libcuda*.so*
-    _prepare_install_libcudadev_stub-stubOnly "$@"
+    _prepare_install_libcudadev_stub-stubOnly "\$@"
 }
 
 _rm_install_libcudadev_stub-stubOnly
@@ -28315,51 +28942,68 @@ echo 'python3 /install_licenses.py > /licenses/PYTHON_THIRD_PARTY.md'
 
 
 _here_dockerfile-ubiquitous-licenses() {
+    
+    # https://packages.debian.org/bookworm/base-files
 
-    ! mkdir -p "$scriptLocal"/licenses && ( _messageError 'FAIL' >&2 ) > /dev/null && _stop 1
 
-    [[ ! -e "$scriptLocal"/licenses/gpl-2.0.txt ]] && wget -qO "$scriptLocal"/licenses/gpl-2.0.txt 'https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt'
-    [[ ! -e "$scriptLocal"/licenses/gpl-3.0.txt ]] && wget -qO "$scriptLocal"/licenses/gpl-3.0.txt 'https://www.gnu.org/licenses/gpl-3.0.txt'
-    [[ ! -e "$scriptLocal"/licenses/agpl-3.0.txt ]] && wget -qO "$scriptLocal"/licenses/agpl-3.0.txt 'https://www.gnu.org/licenses/agpl-3.0.txt'
+    #! mkdir -p "$scriptLocal"/licenses && ( _messageError 'FAIL' >&2 ) > /dev/null && _stop 1
 
+    ##https://web.archive.org/web/20250531033557/https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+    ##https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/LICENSES/preferred/GPL-2.0
+    ##/usr/share/common-licenses/GPL-2
+    #[[ ! -e "$scriptLocal"/licenses/gpl-2.0.txt ]] && wget --timeout 9 --tries 9 -qO "$scriptLocal"/licenses/gpl-2.0.txt 'https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt'
+    #[[ ! -e "$scriptLocal"/licenses/gpl-3.0.txt ]] && wget --timeout 3 --tries 3 -qO "$scriptLocal"/licenses/gpl-3.0.txt 'https://www.gnu.org/licenses/gpl-3.0.txt'
+    #[[ ! -e "$scriptLocal"/licenses/agpl-3.0.txt ]] && wget --timeout 3 --tries 3 -qO "$scriptLocal"/licenses/agpl-3.0.txt 'https://www.gnu.org/licenses/agpl-3.0.txt'
+
+
+
+    ##echo
+    ##echo 'RUN mkdir -p /licenses'
+    ##echo
+
+    ##echo 'COPY <<EOFSPECIAL /licenses/gpl-2.0.txt'
+##cat "$scriptLocal"/licenses/gpl-2.0.txt
+##echo 'EOFSPECIAL'
+
+    ##echo 'COPY <<EOFSPECIAL /licenses/gpl-3.0.txt'
+##cat "$scriptLocal"/licenses/gpl-3.0.txt
+##echo 'EOFSPECIAL'
+
+    ##echo 'COPY <<EOFSPECIAL /licenses/agpl-3.0.txt'
+##cat "$scriptLocal"/licenses/agpl-3.0.txt
+##echo 'EOFSPECIAL'
+
+    ##echo
 
 
     #echo
     #echo 'RUN mkdir -p /licenses'
-    #echo
-
-    #echo 'COPY <<EOFSPECIAL /licenses/gpl-2.0.txt'
+    #echo 'COPY <<EOFSPECIAL /licenses/gpl-2.0__gpl-3.0__agpl-3.0.txt'
 #cat "$scriptLocal"/licenses/gpl-2.0.txt
-#echo 'EOFSPECIAL'
-
-    #echo 'COPY <<EOFSPECIAL /licenses/gpl-3.0.txt'
+#echo
+#echo
+#echo '------------------------------'
+#echo
+#echo
 #cat "$scriptLocal"/licenses/gpl-3.0.txt
-#echo 'EOFSPECIAL'
-
-    #echo 'COPY <<EOFSPECIAL /licenses/agpl-3.0.txt'
+#echo
+##echo
+#echo '------------------------------'
+#echo
+#echo
 #cat "$scriptLocal"/licenses/agpl-3.0.txt
+#echo
 #echo 'EOFSPECIAL'
 
-    #echo
+    cat << 'CZXWXcRMTo8EmM8i4d'
+
+RUN env DEBIAN_FRONTEND=noninteractive apt-get install --install-recommends -y base-files ;\ 
+mkdir -p /licenses ;\ 
+ln -sf /usr/share/common-licenses /licenses/common-licenses
 
 
-    echo
-    echo 'RUN mkdir -p /licenses'
-    echo 'COPY <<EOFSPECIAL /licenses/gpl-2.0__gpl-3.0__agpl-3.0.txt'
-cat "$scriptLocal"/licenses/gpl-2.0.txt
-echo
-echo
-echo '------------------------------'
-echo
-echo
-cat "$scriptLocal"/licenses/gpl-3.0.txt
-echo
-echo
-echo '------------------------------'
-echo
-echo
-cat "$scriptLocal"/licenses/agpl-3.0.txt
-echo 'EOFSPECIAL'
+
+CZXWXcRMTo8EmM8i4d
 
 }
 
@@ -28475,6 +29119,8 @@ __factoryCreate_sequence_runpod-pytorch-heavy() {
     fi
 
     _start
+	local functionEntryPWD
+	functionEntryPWD="$PWD"
 
     # ATTRIBUTION-AI Llama 3.1 Nemotron Ultra 253b v1
     docker stop $(docker ps -aq --filter ancestor=runpod-pytorch-heavy 2>/dev/null) > /dev/null 2>&1
@@ -28540,6 +29186,7 @@ __factoryCreate_sequence_runpod-pytorch-heavy() {
     #export safeToDeleteGit="true"
     _safeRMR "$safeTmp"/repo
 
+    cd "$functionEntryPWD"
     _stop
 }
 __factoryCreate_runpod-pytorch-heavy() {
@@ -28668,6 +29315,8 @@ __factoryCreate_sequence_runpod-pytorch-unsloth() {
     fi
 
     _start
+	local functionEntryPWD
+	functionEntryPWD="$PWD"
 
     # ATTRIBUTION-AI Llama 3.1 Nemotron Ultra 253b v1
     docker stop $(docker ps -aq --filter ancestor=runpod-pytorch-unsloth 2>/dev/null) > /dev/null 2>&1
@@ -28733,6 +29382,7 @@ __factoryCreate_sequence_runpod-pytorch-unsloth() {
     #export safeToDeleteGit="true"
     _safeRMR "$safeTmp"/repo
 
+    cd "$functionEntryPWD"
     _stop
 }
 __factoryCreate_runpod-pytorch-unsloth() {
@@ -28853,6 +29503,8 @@ __factoryCreate_sequence_runpod-heavy() {
     fi
 
     _start
+	local functionEntryPWD
+	functionEntryPWD="$PWD"
 
     # ATTRIBUTION-AI Llama 3.1 Nemotron Ultra 253b v1
     docker stop $(docker ps -aq --filter ancestor=runpod-heavy 2>/dev/null) > /dev/null 2>&1
@@ -28890,6 +29542,7 @@ __factoryCreate_sequence_runpod-heavy() {
     #export safeToDeleteGit="true"
     _safeRMR "$safeTmp"/repo
 
+    cd "$functionEntryPWD"
     _stop
 }
 __factoryCreate_runpod-heavy() {
@@ -29010,6 +29663,8 @@ __factoryCreate_sequence_axolotl-heavy() {
     fi
 
     _start
+	local functionEntryPWD
+	functionEntryPWD="$PWD"
 
     # ATTRIBUTION-AI Llama 3.1 Nemotron Ultra 253b v1
     docker stop $(docker ps -aq --filter ancestor=axolotl-heavy 2>/dev/null) > /dev/null 2>&1
@@ -29048,6 +29703,7 @@ __factoryCreate_sequence_axolotl-heavy() {
     #export safeToDeleteGit="true"
     _safeRMR "$safeTmp"/repo
 
+    cd "$functionEntryPWD"
     _stop
 }
 __factoryCreate_axolotl-heavy() {
@@ -29161,6 +29817,8 @@ __factoryCreate_sequence_nvidia_nemo-heavy() {
     fi
 
     _start
+	local functionEntryPWD
+	functionEntryPWD="$PWD"
 
     # ATTRIBUTION-AI Llama 3.1 Nemotron Ultra 253b v1
     docker stop $(docker ps -aq --filter ancestor=nvidia_nemo-heavy 2>/dev/null) > /dev/null 2>&1
@@ -29199,6 +29857,7 @@ __factoryCreate_sequence_nvidia_nemo-heavy() {
     #export safeToDeleteGit="true"
     _safeRMR "$safeTmp"/repo
 
+    cd "$functionEntryPWD"
     _stop
 }
 __factoryCreate_nvidia_nemo-heavy() {
@@ -29307,6 +29966,8 @@ __factoryCreate_sequence_openai-heavy() {
     fi
 
     _start
+	local functionEntryPWD
+	functionEntryPWD="$PWD"
 
     # ATTRIBUTION-AI Llama 3.1 Nemotron Ultra 253b v1
     docker stop $(docker ps -aq --filter ancestor=openai-heavy 2>/dev/null) > /dev/null 2>&1
@@ -29373,6 +30034,7 @@ __factoryCreate_sequence_openai-heavy() {
     #export safeToDeleteGit="true"
     _safeRMR "$safeTmp"/repo
 
+    cd "$functionEntryPWD"
     _stop
 }
 __factoryCreate_openai-heavy() {
@@ -30212,6 +30874,8 @@ cat << 'CZXWXcRMTo8EmM8i4d'
 
 doNotMatch
 # ###
+
+[[ -e /.dockerenv ]] && git config --global --add safe.directory '*' > /dev/null 2>&1
 
 if [[ -e /workspace/ubiquitous_bash/ubiquitous_bash.sh ]]
 then
@@ -39947,15 +40611,124 @@ _setup_claude_code() {
 
 # NOTICE: Installing 'codex' may be useful for cloud, container, etc, usage (eg. within a RunPod instance, within a Docker container, etc).)
 # Also recommend 'Cline' VSCode extension .
-_setup_codex() {
+
+
+_setup_codex_sequence-npm() {
+    _start
+    local functionEntryPWD
+    functionEntryPWD="$PWD"
+
+    cd "$safeTmp"
+    
+
+    # DUBIOUS .
+    #sudo -n npm install -g @openai/codex@b73426c1c40187ca13c74c03912a681072c2884f
+
+    # ATTRIBUTION-AI: devstral-small  2025-06-11
+    #sudo -n npm install https://github.com/openai/codex/archive/b73426c1c40187ca13c74c03912a681072c2884f.tar.gz
+
+
+
+    sudo -n npm install https://github.com/openai/codex/archive/8493285.tar.gz
+    sudo -n npm install https://github.com/openai/codex/archive/b051edb7d3e04200b369af37ca45e210614cf281.tar.gz
+
+
+    cd "$functionEntryPWD"
+    _stop
+}
+
+_setup_codex-npm() {
     _mustGetSudo
 
     _get_npm
 
+
+
+    # WARNING: Mainline version. DISCOURAGED, except to get dependencies needed by a frozen, and possibly more useful, version. Issues disabling sandbox .
+    #  https://github.com/openai/codex/pull/996
+    #  https://github.com/openai/codex/pull/1125
+    #  https://github.com/openai/codex/issues/1254
+    #  https://github.com/openai/codex/pull/374
     #@openai/codex
     #@openai/codex@latest
     sudo -n npm install -g @openai/codex
 }
+
+# WARNING: May be untested.
+# DUBIOUS .
+_setup_codex_sequence-upstream() {
+    _start
+    local functionEntryPWD
+    functionEntryPWD="$PWD"
+
+    #cd "$safeTmp"
+    mkdir -p "$HOME"/core/installations/codex_bin
+    cd "$HOME"/core/installations/codex_bin
+
+    # ATTRIBUTION-AI: ChatGPT o3  2025-06-11  (partially)
+
+    for v in $(env | awk -F= '/^NVM_/ {print $1}'); do
+        unset "$v"
+    done
+
+    export PATH="$(printf '%s' "$PATH" | tr ':' '\n' | grep -vE '/\.nvm/' | paste -sd ':' -)"
+    #export PATH="/usr/bin:${PATH}"
+
+    export SHELL="/bin/bash"
+    
+    sudo -n /usr/bin/corepack enable                 # turn on pnpm via corepack (Node >=16.10)
+    /usr/bin/corepack prepare pnpm@latest --activate
+
+    export safeToDeleteGit="true"
+    git clone https://github.com/openai/codex.git
+    cd codex
+
+    # fetch PR 996 and check it out locally
+    git fetch origin pull/996/head:disable-sandbox
+    git switch disable-sandbox      # or: git checkout -b disable-sandbox FETCH_HEAD
+
+    yes | /usr/lib/node_modules/corepack/shims/pnpm setup
+
+    export PNPM_HOME="$HOME""/.local/share/pnpm"
+    case ":$PATH:" in
+        *":$PNPM_HOME:"*) ;;
+        *) export PATH="$PNPM_HOME:$PATH" ;;
+    esac
+
+    # install deps for the monorepo and build just the CLI package
+    yes | /usr/lib/node_modules/corepack/shims/pnpm install
+    /usr/lib/node_modules/corepack/shims/pnpm --dir ./codex-cli run build
+
+
+    # expose the built CLI globally
+    cd ./codex-cli
+    /usr/lib/node_modules/corepack/shims/pnpm link --global
+
+    mkdir -p "$HOME"/.bun/install/global
+    [[ ! -e "$HOME"/.bun/install/global/package.json ]] && echo '{ "name": "bun-global", "private": true }' > "$HOME"/.bun/install/global/package.json
+
+    cd "$functionEntryPWD"
+    _stop
+}
+_setup_codex-upstream() {
+    _setup_codex-npm "$@"
+    "$scriptAbsoluteLocation" _setup_codex_sequence-upstream "$@"
+}
+
+_setup_codex() {
+    _setup_codex-upstream "$@"
+}
+
+
+# ATTENTION: Full WebUI Codex may need 'ubDEBUG=true' to better diagnose and continue testing.
+# WARNING: CLI Codex may NOT work well with 'ubDEBUG=true'.
+# codex ... ubiquitous_bash ... debug
+#
+#export devfast=true
+#export skimfast=true
+#
+#export ub_setScriptChecksum_disable='true'
+##export ubDEBUG=true
 
 
 # https://github.com/openai/codex/issues/1189
@@ -39978,14 +40751,153 @@ _setup_codex() {
 
 
 
+# WARNING: Mainline versions of CLI Codex apparently do NOT disable the sandbox if '--approval-mode full-auto' parameter is given.
+#export TMPDIR=/tmp ; 
+#export CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 ; codex --dangerously-auto-approve-everything
+#export CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 ; codex --dangerously-auto-approve-everything --approval-mode full-auto
+#alias codexAuto='export CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 ; codex --dangerously-auto-approve-everything --approval-mode full-auto'
+#alias codexForce='export CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 ; codex --dangerously-auto-approve-everything'
+alias codexAuto='CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 codex --dangerously-auto-approve-everything --approval-mode full-auto'
+alias codexForce='CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 codex --dangerously-auto-approve-everything'
 
-alias codexAuto='codex --approval-mode full-auto'
+
+
+
+# ATTENTION: Override with 'ops.sh' , '_bashrc' , or similar, ONLY if uniquely necessary for a very unusual situation.
+#  ATTENTION: NOTICE: Otherwise, CLI Codex issues really should be very urgently reported as issues to both 'codex' and 'ubiquitous_bash' projects .
+# Assumes the usable upstream mainline 'node' and 'codex' installations are installed '/usr/bin' or similar, with conflicting (eg. not recent) or custom (eg. disable sandbox) versions installed under "$HOME" or similar.
+_codexBin-usr_local_bin_node() {
+    local currentDisableSandbox
+    currentDisableSandbox="false"
+
+    # Calling 'codexAuto' from Cygwin to WSL2 codex would not necessarily apply the environment variable. Infer always disabling sandbox implied with command line parameter .
+    local currentArg
+    for currentArg in "$@"
+    do
+        [[ "$currentArg" == "--dangerously-auto-approve-everything" ]] && currentDisableSandbox="true"
+    done
+
+    if ( [[ "$currentDisableSandbox" != "false" ]] || [[ -v CODEX_UNSAFE_ALLOW_NO_SANDBOX ]] ) && ( ( [[ ! -e /.dockerenv ]] && ! [[ -e /info_factoryName.txt ]] ) || grep 'ubDistBuild' /info-github > /dev/null 2>&1 || _if_cygwin )
+    then
+        #_messagePlain_warn
+        #_messageError
+        _messageError ' CAUTION: DANGER: Native codexAuto, codexForce, etc, may cause IRREPARABLE dist/OS BREAKAGE, filesystem DELETION , or network HARM ! ' >&2
+        echo 'Ctrl+c repeatedly to cancel!' >&2
+        echo 'wait: 5seconds: Ctrl+c repeatedly to cancel NOW!!!' >&2
+        sleep 4
+    fi
+
+    #[[ "$currentDisableSandbox" == "true" ]] && export CODEX_UNSAFE_ALLOW_NO_SANDBOX=1
+    
+
+    local currentExitStatus
+
+    if [[ -e "$HOME"/.local/share/pnpm/codex ]]
+    then
+        export PNPM_HOME="$HOME""/.local/share/pnpm"
+        case ":$PATH:" in
+            *":$PNPM_HOME:"*) ;;
+            *) export PATH="$PNPM_HOME:$PATH" ;;
+        esac
+        if [[ "$currentDisableSandbox" == "true" ]] || [[ "$CODEX_UNSAFE_ALLOW_NO_SANDBOX" == "1" ]]
+        then
+            CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 "$HOME"/.local/share/pnpm/codex "$@"
+            currentExitStatus="$?"
+            unset CODEX_UNSAFE_ALLOW_NO_SANDBOX
+            return "$currentExitStatus"
+        #else
+            #"$HOME"/.local/share/pnpm/codex "$@"
+            #currentExitStatus="$?"
+            #unset CODEX_UNSAFE_ALLOW_NO_SANDBOX
+            #return "$currentExitStatus"
+        fi
+    fi
+    if [[ "$currentDisableSandbox" == "true" ]] || [[ "$CODEX_UNSAFE_ALLOW_NO_SANDBOX" == "1" ]]
+    then
+        #CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 /usr/local/bin/node "$(type -P codex)" "$@"
+        #CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 /usr/local/bin/node /usr/local/bin/codex "$@"
+        CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 /usr/local/bin/node '/usr/lib/node_modules/@openai/codex/bin/codex.js' "$@"
+        currentExitStatus="$?"
+        unset CODEX_UNSAFE_ALLOW_NO_SANDBOX
+        return "$currentExitStatus"
+    else
+        #/usr/local/bin/node "$(type -P codex)" "$@"
+        #/usr/local/bin/node /usr/local/bin/codex "$@"
+        /usr/local/bin/node '/usr/local/lib/node_modules/@openai/codex/bin/codex.js' "$@"
+        currentExitStatus="$?"
+        unset CODEX_UNSAFE_ALLOW_NO_SANDBOX
+        return "$currentExitStatus"
+    fi
+}
+_codexBin-usr_bin_node() {
+    local currentDisableSandbox
+    currentDisableSandbox="false"
+
+    # Calling 'codexAuto' from Cygwin to WSL2 codex would not necessarily apply the environment variable. Infer always disabling sandbox implied with command line parameter .
+    local currentArg
+    for currentArg in "$@"
+    do
+        [[ "$currentArg" == "--dangerously-auto-approve-everything" ]] && currentDisableSandbox="true"
+    done
+
+    if ( [[ "$currentDisableSandbox" != "false" ]] || [[ -v CODEX_UNSAFE_ALLOW_NO_SANDBOX ]] ) && ( ( [[ ! -e /.dockerenv ]] && ! [[ -e /info_factoryName.txt ]] ) || grep 'ubDistBuild' /info-github > /dev/null 2>&1 || _if_cygwin )
+    then
+        #_messagePlain_warn
+        #_messageError
+        _messageError ' CAUTION: DANGER: Native codexAuto, codexForce, etc, may cause IRREPARABLE dist/OS BREAKAGE, filesystem DELETION , or network HARM ! ' >&2
+        echo 'Ctrl+c repeatedly to cancel!' >&2
+        echo 'wait: 5seconds: Ctrl+c repeatedly to cancel NOW!!!' >&2
+        sleep 4
+    fi
+
+    #[[ "$currentDisableSandbox" == "true" ]] && export CODEX_UNSAFE_ALLOW_NO_SANDBOX=1
+    
+
+    local currentExitStatus
+
+    if [[ -e "$HOME"/.local/share/pnpm/codex ]]
+    then
+        export PNPM_HOME="$HOME""/.local/share/pnpm"
+        case ":$PATH:" in
+            *":$PNPM_HOME:"*) ;;
+            *) export PATH="$PNPM_HOME:$PATH" ;;
+        esac
+        if [[ "$currentDisableSandbox" == "true" ]] || [[ "$CODEX_UNSAFE_ALLOW_NO_SANDBOX" == "1" ]]
+        then
+            CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 "$HOME"/.local/share/pnpm/codex "$@"
+            currentExitStatus="$?"
+            unset CODEX_UNSAFE_ALLOW_NO_SANDBOX
+            return "$currentExitStatus"
+        #else
+            #"$HOME"/.local/share/pnpm/codex "$@"
+            #currentExitStatus="$?"
+            #unset CODEX_UNSAFE_ALLOW_NO_SANDBOX
+            #return "$currentExitStatus"
+        fi
+    fi
+    if [[ "$currentDisableSandbox" == "true" ]] || [[ "$CODEX_UNSAFE_ALLOW_NO_SANDBOX" == "1" ]]
+    then
+        #CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 /usr/bin/node "$(type -P codex)" "$@"
+        #CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 /usr/bin/node /usr/bin/codex "$@"
+        CODEX_UNSAFE_ALLOW_NO_SANDBOX=1 /usr/bin/node '/usr/lib/node_modules/@openai/codex/bin/codex.js' "$@"
+        currentExitStatus="$?"
+        unset CODEX_UNSAFE_ALLOW_NO_SANDBOX
+        return "$currentExitStatus"
+    else
+        #/usr/bin/node "$(type -P codex)" "$@"
+        #/usr/bin/node /usr/bin/codex "$@"
+        /usr/bin/node '/usr/lib/node_modules/@openai/codex/bin/codex.js' "$@"
+        currentExitStatus="$?"
+        unset CODEX_UNSAFE_ALLOW_NO_SANDBOX
+        return "$currentExitStatus"
+    fi
+}
 
 
 if type -P codex > /dev/null 2>&1
 then
-    [[ -e /usr/local/bin/node ]] && alias codex=/usr/local/bin/node' '"$(type -P codex)"
-    [[ -e /usr/bin/node ]] && alias codex=/usr/bin/node' '"$(type -P codex)"
+    [[ -e /usr/local/bin/node ]] && alias codex=_codexBin-usr_local_bin_node
+    [[ -e /usr/bin/node ]] && alias codex=_codexBin-usr_bin_node
 fi
 
 
@@ -46926,6 +47838,8 @@ then
 	unset _ubcore_add_authorized_SSH
 fi
 
+[[ -e /.dockerenv ]] && git config --global --add safe.directory '*' > /dev/null 2>&1
+
 CZXWXcRMTo8EmM8i4d
 
 }
@@ -47353,6 +48267,12 @@ _install_certs() {
     _if_cygwin && sudo -n rm -f /etc/pki/tls/certs/*.0
 
     _install_certs_write
+
+    # Setup scripts in constrained repetitive environments (ie. OpenAI Codex setup script) may multi-thread concurrent _setupUbiquitous with apt-get . This detects that, and prevents dpkg collision.
+    while pgrep '^dpkg$' > /dev/null 2>&1
+    do
+        sleep 1
+    done
 
     local currentExitStatus="1"
     ! _if_cygwin && sudo -n update-ca-certificates
@@ -49588,7 +50508,7 @@ then
 	#then
 		_write_configure_git_safe_directory_if_admin_owned "$scriptAbsoluteFolder"
 	#fi
-elif uname -a | grep -i 'microsoft' > /dev/null 2>&1 && uname -a | grep -i 'WSL2' > /dev/null 2>&1
+elif ( uname -a | grep -i 'microsoft' > /dev/null 2>&1 && uname -a | grep -i 'WSL2' > /dev/null 2>&1 ) || [[ -e /.dockerenv ]]
 then
 	if [[ "$tmpSelf" == "" ]]
 	then
@@ -56367,6 +57287,7 @@ _stop() {
 	
 	_safeRMR "$shortTmp"
 	_safeRMR "$safeTmp"
+	[[ "$fastTmp" != "" ]] && _safeRMR "$fastTmp"
 	
 	[[ -e "$safeTmp" ]] && sleep 0.1 && _safeRMR "$safeTmp"
 	[[ -e "$safeTmp" ]] && sleep 0.3 && _safeRMR "$safeTmp"
@@ -57389,6 +58310,11 @@ _variableLocalTest_sequence() {
 
 	variableLocalTest_evalTest() { local currentVariableNum=1 ; eval local currentVariable_${currentVariableNum}_currentData=PASS ; ( eval "[[ \$currentVariable_${currentVariableNum}_currentData == PASS ]]" && eval "[[ \$currentVariable_${currentVariableNum}_currentData != '' ]]" && eval "echo \$currentVariable_${currentVariableNum}_currentData" ) ;} ; variableLocalTest_evalTest > /dev/null ; [[ $(variableLocalTest_evalTest) != "PASS" ]] && _messageFAIL && _stop 1
 
+
+	! [[ $(currentVariable=currentValue /bin/bash --norc -c 'echoVariableTest() { echo $currentVariable ; } ; echoVariableTest') == "currentValue" ]] && _messageFAIL && _stop 1
+	! [[ $(currentVariable=currentValue currentVariable=currentValue /bin/bash --norc -c 'echoVariableTest() { echo $currentVariable ; } ; echoVariableTest') == "currentValue" ]] && _messageFAIL && _stop 1
+	! [[ $(currentVariable=currentValueA currentVariable=currentValueB /bin/bash --norc -c 'echoVariableTest() { echo $currentVariable ; } ; echoVariableTest') == "currentValueB" ]] && _messageFAIL && _stop 1
+
 	_stop
 }
 
@@ -58243,10 +59169,18 @@ _test-shell-cygwin() {
 	local currentPathCount
 	currentPathCount=$(echo "$PATH" | grep -o ':' | wc -l | tr -dc '0-9')
 	#if [[ "$currentPathCount" -gt 50 ]]
-	if [[ "$currentPathCount" -gt 66 ]]
+	#if [[ "$currentPathCount" -gt 66 ]]
+	if [[ "$currentPathCount" -gt 99 ]]
 	then
 		echo 'fail: count: PATH: '"$currentPathCount"
 		_messageFAIL
+	fi
+	#if [[ "$currentPathCount" -gt 66 ]]
+	if [[ "$currentPathCount" -gt 80 ]]
+	then
+		echo 'warn: count: PATH: '"$currentPathCount"
+		echo 'warn: MSWEXTPATH may be ignored'
+		_messagePlain_request 'request: reduce the length of PATH variable'
 	fi
 	#if [[ "$currentPathCount" -gt 44 ]]
 	if [[ "$currentPathCount" -gt 60 ]]
@@ -58281,36 +59215,36 @@ _test-shell-cygwin() {
 		_messagePlain_request 'request: reduce the length of PATH variable'
 	fi
 	
-	
-	
-	local currentPathCount
-	currentPathCount=$(echo "$MSWEXTPATH" | grep -o ';\|:' | wc -l | tr -dc '0-9')
-	if [[ "$currentPathCount" -gt 50 ]] && [[ "$CI" == "" ]]
+
+
+	# Discouraged. NOT guaranteed, may be removed if unmaintainable.
+	# Inheritance of variables as a means of communicating or passing parameters is not the point. Inheritance is tested to ensure an entirely different 'ubcp' environment, script, '$safeTmp', etc, is NOT used.
+	export ub_sanity_special="mustInherit"
+	if _if_cygwin
 	then
-		echo 'fail: count: MSWEXTPATH: '"$currentPathCount"
-		_messageFAIL
+		local currentResult
+		currentResult=""
+
+		local current_bin_bash
+		current_bin_bash=$(cygpath -w /bin/bash)
+
+		currentResult=$(cmd /C "$current_bin_bash" '-c' 'echo $ub_sanity_special')
+		[[ "$currentResult" != "mustInherit" ]] && echo 'fail: cmd /bin/bash: mustInherit' && _messageFAIL && return 1
+
+		currentResult=$(cmd /C "$current_bin_bash" '-c' 'echo "$safeTmp"')
+		[[ "$currentResult" != "$safeTmp" ]] && echo 'fail: cmd /bin/bash: inherit: safeTmp' && _messageFAIL && return 1
+
+
+		current_bin_bash=$(cygpath -w /bin/bash | sed 's/\\/\\\\/g')
+
+		currentResult=$(_powershell -Command "$current_bin_bash"" -c 'echo "'"$ub_sanity_special"'"'")
+		[[ "$currentResult" != "mustInherit" ]] && echo 'fail: powershell /bin/bash: mustInherit' && _messageFAIL && return 1
+
+		currentResult=$(_powershell -Command "$current_bin_bash"" -c 'echo "'"$safeTmp"'"'")
+		[[ "$currentResult" != "$safeTmp" ]] && echo 'fail: powershell /bin/bash: inherit: safeTmp' && _messageFAIL && return 1
 	fi
-	if [[ "$currentPathCount" -gt 44 ]]
-	then
-		echo 'warn: count: MSWEXTPATH: '"$currentPathCount"
-		echo 'warn: MSWEXTPATH may be ignored by default'
-		_messagePlain_request 'request: reduce the length of PATH variable'
-	fi
-	
-	
-	if [[ "$currentPathCount" -gt 32 ]]
-	then
-		echo 'warn: count: MSWEXTPATH: '"$currentPathCount"
-		echo 'warn: MSWEXTPATH exceeds preferred 32'
-		_messagePlain_request 'request: reduce the length of PATH variable'
-	fi
-	if [[ "$currentPathCount" -gt 34 ]]
-	then
-		echo 'warn: count: MSWEXTPATH: '"$currentPathCount"
-		echo 'warn: MSWEXTPATH exceeds preferred 34'
-		_messagePlain_request 'request: reduce the length of PATH variable'
-	fi
-	
+	unset ub_sanity_special
+
 	
 	
 	# Although use case specific (eg. flight sim with usual desktop applications installed) test cases may be necessary for MSW, to avoid ambiguity in expectations that every test includes an explicit PASS statement, a call to '_messagePASS' is still given.
@@ -60120,6 +61054,7 @@ _init_deps() {
 	
 	export enUb_dev=""
 	export enUb_dev_heavy=""
+	export enUb_dev_heavy_asciinema=""
 	export enUb_dev_heavy_atom=""
 	
 	export enUb_generic=""
@@ -60232,6 +61167,13 @@ _deps_dev() {
 _deps_dev_heavy() {
 	_deps_notLean
 	export enUb_dev_heavy="true"
+}
+
+_deps_dev_heavy_asciinema() {
+	_deps_notLean
+	_deps_get_npm
+	#export enUb_dev_heavy="true"
+	export enUb_dev_heavy_asciinema="true"
 }
 
 _deps_dev_heavy_atom() {
@@ -61181,6 +62123,9 @@ _compile_bash_deps() {
 	then
 		_deps_dev_ai
 		
+		_deps_dev_heavy
+		_deps_dev_heavy_asciinema
+		
 		_deps_dev_buildOps
 		
 		_deps_notLean
@@ -61419,6 +62364,7 @@ _compile_bash_deps() {
 		_deps_dev_ai
 		
 		_deps_dev_heavy
+		_deps_dev_heavy_asciinema
 		#_deps_dev_heavy_atom
 		_deps_dev
 		_deps_dev_buildOps
@@ -61540,6 +62486,7 @@ _compile_bash_deps() {
 		_deps_dev_ai
 		
 		_deps_dev_heavy
+		_deps_dev_heavy_asciinema
 		#_deps_dev_heavy_atom
 		_deps_dev
 		_deps_dev_buildOps
@@ -61683,6 +62630,7 @@ _compile_bash_deps() {
 		_deps_dev_ai
 		
 		_deps_dev_heavy
+		_deps_dev_heavy_asciinema
 		#_deps_dev_heavy_atom
 		_deps_dev
 		_deps_dev_buildOps
@@ -61970,6 +62918,8 @@ _compile_bash_utilities() {
 	[[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "instrumentation"/bashdb/bashdb.sh )
 	( [[ "$enUb_notLean" == "true" ]] || [[ "$enUb_stopwatch" == "true" ]] ) && includeScriptList+=( "instrumentation"/profiling/stopwatch.sh )
 	
+	[[ "$enUb_dev_heavy" == "true" ]] && includeScriptList+=( "instrumentation"/asciinema/asciinema.sh )
+	
 	[[ "$enUb_generic" == "true" ]] && includeScriptList+=( "generic"/generic.sh )
 }
 
@@ -62097,6 +63047,7 @@ _compile_bash_shortcuts() {
 	
 	( ( [[ "$enUb_dev_heavy" == "true" ]] ) || [[ "$enUb_ai_augment" == "true" ]] ) && includeScriptList+=( "shortcuts/ai/augment"/augment.sh )
 
+	[[ "$enUb_factory_shortcuts" ]] && includeScriptList+=( "shortcuts/factory"/factoryTest.sh )
 	[[ "$enUb_factory_shortcuts" ]] && includeScriptList+=( "shortcuts/factory"/factoryCreate_here.sh )
 	[[ "$enUb_factory_shortcuts" ]] && includeScriptList+=( "shortcuts/factory"/factoryCreate.sh )
 	[[ "$enUb_factory_shortcuts" ]] && includeScriptList+=( "shortcuts/factory"/factory.sh )
@@ -62932,6 +63883,7 @@ _factory_ops() {
             fi
         #fi
     #fi
+    true
 }
 if [[ "$ub_ops_disable" != 'true' ]]
 then
@@ -62940,6 +63892,7 @@ then
         _factory_ops
     fi
 fi
+true
 
 
 # Before calling function, get latest function version .
@@ -62960,6 +63913,7 @@ _factory_ops_recursion() {
         unset recursionGuard_factory_ops
         return "$currentExitStatus_recursion"
     fi
+    true
 }
 
 

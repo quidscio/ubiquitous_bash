@@ -35,6 +35,9 @@ COPY <<EOFSPECIAL /install_ub.sh
 # PASTE
 # ###
 
+#[[ -e /.dockerenv ]] && 
+git config --global --add safe.directory '*' > /dev/null 2>&1
+
 if [[ -e /workspace/ubiquitous_bash/ubiquitous_bash.sh ]]
 then
 mkdir -p ~/.ubcore && cp -a /workspace/ubiquitous_bash ~/.ubcore/
@@ -106,7 +109,9 @@ env DEBIAN_FRONTEND=noninteractive apt-get install coreutils -y ;\
 env DEBIAN_FRONTEND=noninteractive apt install python3 python3-pip git -y ;\ 
 env DEBIAN_FRONTEND=noninteractive apt-get install libcurl4-openssl-dev -y ;\ 
 env DEBIAN_FRONTEND=noninteractive apt-get install ffmpeg -y ;\ 
-env DEBIAN_FRONTEND=noninteractive apt-get install asciinema -y
+env DEBIAN_FRONTEND=noninteractive apt-get install asciinema -y ;\ 
+env DEBIAN_FRONTEND=noninteractive apt-get install gifsicle imagemagick apngasm ffmpeg -y ;\ 
+env DEBIAN_FRONTEND=noninteractive apt-get install gifsicle imagemagick apngasm ffmpeg -y webp
 
 
 # ATTRIBUTION-AI: ChatGPT o3  2025-06-05
@@ -145,13 +150,14 @@ RUN echo 'net.core.bpf_jit_harden=1' | sudo -n tee /etc/sysctl.d/99-nvidia-worka
 
 #codex
 #claude
-RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y curl ;\ 
-curl -fsSL https://deb.nodesource.com/setup_23.x -o /nodesource_setup.sh ;\ 
-bash /nodesource_setup.sh ;\ 
-env DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs ;\ 
-npm install -g @openai/codex ;\ 
-npm install -g @anthropic-ai/claude-code
-
+#RUN env DEBIAN_FRONTEND=noninteractive apt-get install -y curl ;\ 
+#curl -fsSL https://deb.nodesource.com/setup_23.x -o /nodesource_setup.sh ;\ 
+#bash /nodesource_setup.sh ;\ 
+#env DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs ;\ 
+#npm install -g @openai/codex ;\ 
+#npm install -g @anthropic-ai/claude-code
+RUN /workspace/ubiquitous_bash/ubiquitous_bash.sh _setup_codex ;\ 
+/workspace/ubiquitous_bash/ubiquitous_bash.sh _setup_asciinema_convert
 
 
 # ###
@@ -229,7 +235,7 @@ _rm_install_libcudadev_stub-stubOnly() {
     rm -f /opt/libcudadev_stub-stubOnly/*.deb
     rm -f /opt/libcudadev_stub-stubOnly/usr/share/doc/libcuda1/copyright
     rm -f /opt/libcudadev_stub-stubOnly/usr/lib/x86_64-linux-gnu/nvidia/current/libcuda*.so*
-    _prepare_install_libcudadev_stub-stubOnly "$@"
+    _prepare_install_libcudadev_stub-stubOnly "\$@"
 }
 
 _rm_install_libcudadev_stub-stubOnly
@@ -416,51 +422,68 @@ echo 'python3 /install_licenses.py > /licenses/PYTHON_THIRD_PARTY.md'
 
 
 _here_dockerfile-ubiquitous-licenses() {
+    
+    # https://packages.debian.org/bookworm/base-files
 
-    ! mkdir -p "$scriptLocal"/licenses && ( _messageError 'FAIL' >&2 ) > /dev/null && _stop 1
 
-    [[ ! -e "$scriptLocal"/licenses/gpl-2.0.txt ]] && wget -qO "$scriptLocal"/licenses/gpl-2.0.txt 'https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt'
-    [[ ! -e "$scriptLocal"/licenses/gpl-3.0.txt ]] && wget -qO "$scriptLocal"/licenses/gpl-3.0.txt 'https://www.gnu.org/licenses/gpl-3.0.txt'
-    [[ ! -e "$scriptLocal"/licenses/agpl-3.0.txt ]] && wget -qO "$scriptLocal"/licenses/agpl-3.0.txt 'https://www.gnu.org/licenses/agpl-3.0.txt'
+    #! mkdir -p "$scriptLocal"/licenses && ( _messageError 'FAIL' >&2 ) > /dev/null && _stop 1
 
+    ##https://web.archive.org/web/20250531033557/https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+    ##https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/plain/LICENSES/preferred/GPL-2.0
+    ##/usr/share/common-licenses/GPL-2
+    #[[ ! -e "$scriptLocal"/licenses/gpl-2.0.txt ]] && wget --timeout 9 --tries 9 -qO "$scriptLocal"/licenses/gpl-2.0.txt 'https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt'
+    #[[ ! -e "$scriptLocal"/licenses/gpl-3.0.txt ]] && wget --timeout 3 --tries 3 -qO "$scriptLocal"/licenses/gpl-3.0.txt 'https://www.gnu.org/licenses/gpl-3.0.txt'
+    #[[ ! -e "$scriptLocal"/licenses/agpl-3.0.txt ]] && wget --timeout 3 --tries 3 -qO "$scriptLocal"/licenses/agpl-3.0.txt 'https://www.gnu.org/licenses/agpl-3.0.txt'
+
+
+
+    ##echo
+    ##echo 'RUN mkdir -p /licenses'
+    ##echo
+
+    ##echo 'COPY <<EOFSPECIAL /licenses/gpl-2.0.txt'
+##cat "$scriptLocal"/licenses/gpl-2.0.txt
+##echo 'EOFSPECIAL'
+
+    ##echo 'COPY <<EOFSPECIAL /licenses/gpl-3.0.txt'
+##cat "$scriptLocal"/licenses/gpl-3.0.txt
+##echo 'EOFSPECIAL'
+
+    ##echo 'COPY <<EOFSPECIAL /licenses/agpl-3.0.txt'
+##cat "$scriptLocal"/licenses/agpl-3.0.txt
+##echo 'EOFSPECIAL'
+
+    ##echo
 
 
     #echo
     #echo 'RUN mkdir -p /licenses'
-    #echo
-
-    #echo 'COPY <<EOFSPECIAL /licenses/gpl-2.0.txt'
+    #echo 'COPY <<EOFSPECIAL /licenses/gpl-2.0__gpl-3.0__agpl-3.0.txt'
 #cat "$scriptLocal"/licenses/gpl-2.0.txt
-#echo 'EOFSPECIAL'
-
-    #echo 'COPY <<EOFSPECIAL /licenses/gpl-3.0.txt'
+#echo
+#echo
+#echo '------------------------------'
+#echo
+#echo
 #cat "$scriptLocal"/licenses/gpl-3.0.txt
-#echo 'EOFSPECIAL'
-
-    #echo 'COPY <<EOFSPECIAL /licenses/agpl-3.0.txt'
+#echo
+##echo
+#echo '------------------------------'
+#echo
+#echo
 #cat "$scriptLocal"/licenses/agpl-3.0.txt
+#echo
 #echo 'EOFSPECIAL'
 
-    #echo
+    cat << 'CZXWXcRMTo8EmM8i4d'
+
+RUN env DEBIAN_FRONTEND=noninteractive apt-get install --install-recommends -y base-files ;\ 
+mkdir -p /licenses ;\ 
+ln -sf /usr/share/common-licenses /licenses/common-licenses
 
 
-    echo
-    echo 'RUN mkdir -p /licenses'
-    echo 'COPY <<EOFSPECIAL /licenses/gpl-2.0__gpl-3.0__agpl-3.0.txt'
-cat "$scriptLocal"/licenses/gpl-2.0.txt
-echo
-echo
-echo '------------------------------'
-echo
-echo
-cat "$scriptLocal"/licenses/gpl-3.0.txt
-echo
-echo
-echo '------------------------------'
-echo
-echo
-cat "$scriptLocal"/licenses/agpl-3.0.txt
-echo 'EOFSPECIAL'
+
+CZXWXcRMTo8EmM8i4d
 
 }
 
