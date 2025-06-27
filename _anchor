@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
+# When invoked as _anchor, it initializes new anchors via the _refresh_anchors function and functions defined in a component script such as core.sh.
+# When invoked as any other name, such as _foo, it executes ubiquitous_bash.sh with the script name as the first argument, thereby invoking the custom function of the same name, _foo.
+# Returns the exit code of the last command executed, or an error if _anchor itself encounters one.
+# Notes: _anchor accepts a few special parameters, such as --shell, --profile, --parent, --embed, --return, --devenv, --call, --script, and --bypass. They are used by internal functions of ubiquitous_bash.sh. 
 
+# Following functions are manually copied in from component scripts (as with fork) 
 #Universal debugging filesystem.
 _user_log_anchor() {
 	# DANGER Do NOT create automatically, or reference any existing directory!
@@ -238,13 +243,21 @@ _filter_highestPath() {
 	awk -F'/' '{print "", NF, $F}' | sort -n | awk '{print $2}' | head -n 1
 }
 
+# Returns success if a candidate file exists, is non-empty, is readable, and is not the current script; otherwise returns error.
+# Inputs include a file path to check.
+# Returns 0 for safe file, 1 for unsafe or invalid file; no variables are modified.
 _recursion_guard() {
+	# Check if the file exists. If not, stop 
 	! [[ -e "$1" ]] && return 1
 	
+	# Check if the file is not empty. If it is empty, stop
 	! [[ -s "$1" ]] && return 1
+
+	# Check if the file can be read. If it can't be read, stop
 	! head --bytes=1 "$1" > /dev/null 2>&1 && return 1
 	#! type "$1" >/dev/null 2>&1 && return 1
 	
+	# Check if the file is the same as the current script. If it is the same, stop 
 	local launchGuardScriptAbsoluteLocation
 	launchGuardScriptAbsoluteLocation=$(_getScriptAbsoluteLocation)
 	local launchGuardTestAbsoluteLocation
@@ -280,6 +293,7 @@ _messageError() {
 	return 0
 }
 
+# Following functions are unique to _anchor (mostly)
 #https://stackoverflow.com/questions/4210042/how-to-exclude-a-directory-in-find-command/16595367#16595367
 _findAnchor() {
 	local anchorCurrentSearchDir
@@ -332,6 +346,7 @@ _check_anchor() {
 	done
 }
 
+# Function manually copied to prevent malicious overloading 
 #_safeEcho_anchor "$anchorScriptAbsoluteFolder" | tr -dc 'a-zA-Z0-9.:_-'
 _safeEcho_anchor() {
 	printf '%s' "$1"
@@ -348,6 +363,9 @@ _safeEcho_anchor() {
 	return 0
 }
 
+# Finds and launches the appropriate anchor script based on anchorName and import flags.
+# Inputs include anchor name, anchor location, and any optional arguments passed to the launched script.
+# Returns the exit code of the invoked script, or a failure code if no valid script is found.
 _launch_anchor() {
 	_messagePlain_nominal 'anchorName='"$anchorName" | _user_log_anchor
 
@@ -364,6 +382,7 @@ _launch_anchor() {
 	
 	# WARNING: What is otherwise considered bad practice may be accepted to reduce substantial MSW/Cygwin inconvenience .
 	
+	# Try to safely launch the script if under Cygwin /cygdrive/ and a drive letter matches. 
 	if [[ "$anchorScriptAbsoluteFolder" == '/cygdrive/'* ]]
 	then
 		local currentDriveLetter
@@ -372,8 +391,10 @@ _launch_anchor() {
 			if [[ "$anchorScriptAbsoluteFolder" == '/cygdrive/'"$currentDriveLetter" ]]
 			then
 				recursionExec="$anchorScriptAbsoluteFolder"/"$anchorSource"
+				# Launch if the target script passes basic safety checks
 				if _recursion_guard "$recursionExec"
 				then
+					# Launch normally if not in import mode
 					[[ "$ub_import" != "true" ]] && _messagePlain_good 'self: 'bash "$recursionExec" "$anchorName" "$@" | _user_log_anchor
 						if [[ "$ub_import" != "true" ]]
 						then
@@ -381,6 +402,7 @@ _launch_anchor() {
 							exit $?
 						fi
 					
+					# Launch with import parameters if in import mode. 
 					[[ "$ub_import" == "true" ]] && _messagePlain_good 'self: 'bash "$recursionExec" "$ub_import_param" "$anchorName" "$@" | _user_log_anchor
 						[[ "$ub_import" == "true" ]] && bash "$recursionExec" "$ub_import_param" "$anchorName" "$@"
 					
@@ -390,18 +412,23 @@ _launch_anchor() {
 		done
 	fi
 	
+	# Try to launch if running from the developer's WSL project directory or a temporary scratch directory 
 	if [[ "$anchorScriptAbsoluteFolder" == '/home/user/project' ]] || [[ "$anchorScriptAbsoluteFolder" == /tmp/"$ubiquitiousBashIDnano" ]]
 	then
 		recursionExec="$anchorScriptAbsoluteFolder"/"$anchorSource"
+		# Launch if the target script passes basic safety checks
 		if _recursion_guard "$recursionExec"
 		then
+			# Log the upcoming bash launch command if not in import mode 
 			[[ "$ub_import" != "true" ]] && _messagePlain_good 'self: 'bash "$recursionExec" "$anchorName" "$@" | _user_log_anchor
+				# Launch normally if not in import mode 
 				if [[ "$ub_import" != "true" ]]
 				then
 					bash "$recursionExec" "$anchorName" "$@"
 					exit $?
 				fi
 			
+			# Launch with import parameters if in import mode 
 			[[ "$ub_import" == "true" ]] && _messagePlain_good 'self: 'bash "$recursionExec" "$ub_import_param" "$anchorName" "$@" | _user_log_anchor
 				[[ "$ub_import" == "true" ]] && bash "$recursionExec" "$ub_import_param" "$anchorName" "$@"
 			
@@ -409,28 +436,35 @@ _launch_anchor() {
 		fi
 	fi
 	
-	
+	# Set the path by moving one directory up and appending the source script 
 	recursionExec="$anchorScriptAbsoluteFolder"/../"$anchorSourcePath"
+	# Launch if the constructed parent-folder script path passes safety checks 
 	if _recursion_guard "$recursionExec"
 	then
+		# Log the upcoming bash launch command if not in import mode 
 		[[ "$ub_import" != "true" ]] && _messagePlain_good 'self: 'bash "$recursionExec" "$anchorName" "$@" | _user_log_anchor
+			# Launch normally if not in import mode 
 			if [[ "$ub_import" != "true" ]]
 			then
 				bash "$recursionExec" "$anchorName" "$@"
 				exit $?
 			fi
 		
+		# Launch with import parameters if in import mode 
 		[[ "$ub_import" == "true" ]] && _messagePlain_good 'self: 'bash "$recursionExec" "$ub_import_param" "$anchorName" "$@" | _user_log_anchor
 			[[ "$ub_import" == "true" ]] && bash "$recursionExec" "$ub_import_param" "$anchorName" "$@"
 		
 		exit $?
 	fi
 	
-	#Resolves placement under "$anchorSourcePath"/_index .
+	# Resolves placement under "$anchorSourcePath"/_index .
+	# Set the path by moving two directories up and appending the source script 
 	recursionExec="$anchorScriptAbsoluteFolder"/../../"$anchorSourcePath"
+	# Launch if the constructed grandparent-folder script path passes safety checks 
 	if _recursion_guard "$recursionExec"
 	then
 		[[ "$ub_import" != "true" ]] && _messagePlain_good 'self: 'bash "$recursionExec" "$anchorName" "$@" | _user_log_anchor
+			# Launch normally if not in import mode
 			if [[ "$ub_import" != "true" ]]
 			then
 				bash "$recursionExec" "$anchorName" "$@"
@@ -438,11 +472,13 @@ _launch_anchor() {
 			fi
 		
 		[[ "$ub_import" == "true" ]] && _messagePlain_good 'self: 'bash "$recursionExec" "$ub_import_param" "$anchorName" "$@" | _user_log_anchor
+			# Launch with import parameters if in import mode
 			[[ "$ub_import" == "true" ]] && bash "$recursionExec" "$ub_import_param" "$anchorName" "$@"
 		
 		exit $?
 	fi
 	
+	# Search downward for an anchor source below the current folder and try to launch it, preferring ubiquitous_bash.sh if detected 
 	anchorDestination=$(_findAnchorSource "$anchorScriptAbsoluteFolder"/.. | _check_anchor | _filter_lowestPath)
 	if [[ "$anchorDestination" != "" ]]
 	then
@@ -466,6 +502,7 @@ _launch_anchor() {
 		exit $?
 	fi
 	
+	# Search upward for a parent anchor and launch it if running under a _local/_index folder
 	anchorParent=$(_getAbsoluteLocation "$anchorScriptAbsoluteFolder"/../..)
 	_messagePlain_probe 'anchorParent='"$anchorParent" | _user_log_anchor
 	if [[ "$anchorScriptAbsoluteFolder" == *"_local/_index" ]]
@@ -484,6 +521,7 @@ _launch_anchor() {
 		fi
 	fi
 	
+	# Launch from the core infrastructure VM folder if the target script exists and passes safety checks 
 	recursionExec="$HOME"/core/infrastructure/vm/"$anchorSourcePath"
 	if _recursion_guard "$recursionExec"
 	then
@@ -499,6 +537,7 @@ _launch_anchor() {
 		exit $?
 	fi
 
+	# Launch from the extra infrastructure VM folder if the target script exists and passes safety checks 
 	recursionExec="$HOME"/core/extra/infrastructure/vm/"$anchorSourcePath"
 	if _recursion_guard "$recursionExec"
 	then
@@ -514,6 +553,7 @@ _launch_anchor() {
 		exit $?
 	fi
 	
+	# Launch from the core installations folder if the target script exists and passes safety checks 
 	recursionExec="$HOME"/core/installations/"$anchorSourcePath"
 	if _recursion_guard "$recursionExec"
 	then
@@ -529,6 +569,7 @@ _launch_anchor() {
 		exit $?
 	fi
 
+	# Launch from the extra installations folder if the target script exists and passes safety checks 
 	recursionExec="$HOME"/core/extra/installations/"$anchorSourcePath"
 	if _recursion_guard "$recursionExec"
 	then
@@ -544,6 +585,7 @@ _launch_anchor() {
 		exit $?
 	fi
 
+	# "Launch from the core lab folder if the entity and lab name path leads to a valid script 
 	recursionExec="$HOME"/core/lab/"$anchorEntity""$anchorLabName"/_index/"$anchorName"
 	if _recursion_guard "$recursionExec"
 	then
@@ -559,6 +601,7 @@ _launch_anchor() {
 		exit $?
 	fi
 
+	# Launch from the extra lab folder if the entity and lab name path leads to a valid script
 	recursionExec="$HOME"/core/extra/lab/"$anchorEntity""$anchorLabName"/_index/"$anchorName"
 	if _recursion_guard "$recursionExec"
 	then
@@ -574,6 +617,7 @@ _launch_anchor() {
 		exit $?
 	fi
 
+	# Launch from the core lab folder if the entity and alternate lab name path leads to a valid script 
 	recursionExec="$HOME"/core/lab/"$anchorEntity""$anchorLabNameAlt"/_index/"$anchorName"
 	if _recursion_guard "$recursionExec"
 	then
@@ -589,6 +633,7 @@ _launch_anchor() {
 		exit $?
 	fi
 
+	# Launch from the extra lab folder if the entity and alternate lab name path leads to a valid script
 	recursionExec="$HOME"/core/extra/lab/"$anchorEntity""$anchorLabNameAlt"/_index/"$anchorName"
 	if _recursion_guard "$recursionExec"
 	then
@@ -603,25 +648,31 @@ _launch_anchor() {
 			[[ "$ub_import" == "true" ]] && bash "$recursionExec" "$ub_import_param" "$@"
 		exit $?
 	fi
+
+	# All searches failed. Log the failure and return an error code. 
 	_messagePlain_bad 'missing: '"$anchorSource" | _user_log_anchor
 	return 1
 }
 
+# Set basic anchor metadata based on current script location
 export anchorScriptAbsoluteLocation=$(_getScriptAbsoluteLocation)
 export anchorScriptAbsoluteFolder=$(_getScriptAbsoluteFolder)
 export anchorName=$(basename "$anchorScriptAbsoluteLocation" | sed 's/\.bat$//g')
 
-
+# Define the default source script and its path inside the ubiquitous_bash directory
 export anchorSourceDir="ubiquitous_bash"
 export anchorSource="ubiquitous_bash.sh"
 export anchorSourcePath="$anchorSourceDir"/"$anchorSource"
 
+# Set default lab-related identifiers (used for lab folder resolution later)
 export anchorLabName=anchorLabName
 export anchorLabNameAlt="$anchorLabName"Mini
 
+# Set default entity (blank by default; could be customized)
 export anchorEntity=""
 #export anchorEntity="entity/"
 
+# If the script name is _anchor, directly launch ubiquitous_bash.sh with _anchor argument
 if [[ "$anchorName" == "_anchor" ]]
 then
 	! [[ -e "$anchorScriptAbsoluteFolder"/"$anchorSource" ]] && exit 1
@@ -630,7 +681,7 @@ then
 	exit "$?"
 fi
 
-
+# Handle special MS Windows self-reinterpretation mode (not yet implemented)
 if [[ "$1" == 'MSWselfReinterpret' ]]
 then
 	# ATTENTION: DANGER: Not yet implemented. Add the alternate functionality in production use.
@@ -648,6 +699,9 @@ fi
 
 
 # ATTENTION: DANGER: Uncomment in production use.
+# Launch the resolved anchor script if all above cases did not intercept
+# Inputs include anchor metadata and any optional arguments
+# Returns the exit code of the launched script or failure if not found
 _launch_anchor "$@"
 exit "$?"
 
