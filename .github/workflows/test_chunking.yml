@@ -1,0 +1,84 @@
+name: test_chunking
+
+permissions:
+  actions: none
+  checks: none
+  contents: write
+  deployments: none
+  issues: none
+  packages: none
+  pull-requests: none
+  repository-projects: none
+  security-events: none
+  statuses: none
+
+on:
+  workflow_dispatch:
+    inputs:
+      filesize:
+        description: Size of test file in GB
+        default: "5"
+        required: false
+      chunksize:
+        description: Size of each chunk in GB
+        default: "0.25"
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test_chunking:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create test file
+        env:
+          FILESIZE_GB: ${{ inputs.filesize }}
+        run: |
+          fallocate -l "${FILESIZE_GB}G" largefile.bin
+          sha256sum largefile.bin > largefile.sha256
+
+      - name: Split into chunks
+        env:
+          CHUNKSIZE_GB: ${{ inputs.chunksize }}
+        run: |
+          CHUNK_BYTES=$(python - <<'PY'
+          import os
+          print(int(float(os.environ["CHUNKSIZE_GB"])*1024*1024*1024))
+          PY
+          )
+          split -b "$CHUNK_BYTES" -d -a 2 largefile.bin largefile.bin.part
+          ls -l largefile.bin.part*
+
+      - name: Upload chunks to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: chunktest-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          gh release create "$TAG" -t "$TAG" || true
+          ./ubiquitous_bash.sh _gh_release_upload_parts-multiple "$TAG" largefile.bin.part*
+
+      - name: Download and verify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: chunktest-${{ github.run_id }}-${{ github.run_attempt }}
+          REPO: ${{ github.repository }}
+        run: |
+          ./ubiquitous_bash.sh _wget_githubRelease_join "$REPO" "$TAG" "largefile.bin" largefile_downloaded.bin
+          sha256sum largefile_downloaded.bin > largefile_downloaded.sha256
+          stat -c%s largefile.bin > size_original
+          stat -c%s largefile_downloaded.bin > size_downloaded
+          diff size_original size_downloaded
+          diff largefile.sha256 largefile_downloaded.sha256
+
+      - name: Cleanup release
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: chunktest-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          gh release delete "$TAG" -y
+          git tag -d "$TAG" || true
