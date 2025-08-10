@@ -1,0 +1,198 @@
+# .github/workflows/test_chunking.yml
+name: test_chunking
+
+on:
+  workflow_dispatch:
+    inputs:
+      filesize:
+        description: "Size of test file (e.g., 5GB, 2G, 512MB)"
+        required: false
+        default: "5GB"
+      chunksize:
+        description: "Chunk size (<= 2GB) (e.g., 0.25GB, 256MB)"
+        required: false
+        default: "0.25GB"
+
+permissions:
+  contents: write   # create release & upload assets
+  actions: read
+
+concurrency:
+  group: test_chunking-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  chunk-upload-download-verify:
+    runs-on: ubuntu-latest
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FILESIZE: ${{ inputs.filesize }}
+      CHUNKSIZE: ${{ inputs.chunksize }}
+      TAG: test_chunking-${{ github.run_id }}-${{ github.run_attempt }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Tools sanity
+        shell: bash
+        run: |
+          set -euxo pipefail
+          uname -a
+          df -h
+          gh --version || true
+          split --version | head -n1
+          sha256sum --version | head -n1
+
+      - name: Parse sizes (GB/MB → bytes)
+        id: sizes
+        shell: bash
+        run: |
+          set -euo pipefail
+          to_bytes() {
+            local raw="${1^^}"        # upper
+            raw="${raw// /}"          # trim spaces
+            # normalize common forms
+            raw="${raw/GIB/G}"
+            raw="${raw/G/GB}"         # allow "5G" or "5GB"
+            raw="${raw/MIB/MB}"
+            raw="${raw/KIB/KB}"
+            case "$raw" in
+              *GB) awk "BEGIN{printf(\"%d\", ${raw%GB}*1024*1024*1024)}" ;;
+              *MB) awk "BEGIN{printf(\"%d\", ${raw%MB}*1024*1024)}" ;;
+              *KB) awk "BEGIN{printf(\"%d\", ${raw%KB}*1024)}" ;;
+              *B)  awk "BEGIN{printf(\"%d\", ${raw%B})}" ;;
+              *)   awk "BEGIN{printf(\"%d\", $raw)}" ;;
+            esac
+          }
+          FILESIZE_B="$(to_bytes "${FILESIZE:-5GB}")"
+          CHUNKSIZE_B="$(to_bytes "${CHUNKSIZE:-0.25GB}")"
+
+          # Guardrails – GitHub Release asset hard limit is 2GB per file.
+          lim=$((2*1024*1024*1024))
+          if [ "$CHUNKSIZE_B" -gt "$lim" ]; then
+            echo "Chunk too big (${CHUNKSIZE_B}) > 2GB limit" >&2
+            exit 2
+          fi
+
+          # expose for later steps
+          echo "filesize_b=$FILESIZE_B"   | tee -a "$GITHUB_OUTPUT"
+          echo "chunksize_b=$CHUNKSIZE_B" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Create large file (largefile.bin)
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILESIZE_B='${{ steps.sizes.outputs.filesize_b }}'
+
+          # Fast path: truncate (sparse). Fallback to fallocate, then dd (+truncate).
+          truncate -s "${FILESIZE_B}" largefile.bin || \
+          fallocate -l "${FILESIZE_B}" largefile.bin || \
+          ( MB=$(( (FILESIZE_B + 1048575) / 1048576 ));
+            dd if=/dev/zero of=largefile.bin bs=1M count="$MB" status=progress;
+            truncate -s "${FILESIZE_B}" largefile.bin )
+
+          stat --printf="Created %n (%s bytes)\n" largefile.bin
+
+      - name: Hash original
+        id: orig
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum largefile.bin | tee original.sha256
+          echo "sha=$(cut -d' ' -f1 original.sha256)" | tee -a "$GITHUB_OUTPUT"
+          echo "size=$(stat -c%s largefile.bin)"     | tee -a "$GITHUB_OUTPUT"
+
+      - name: Split into parts
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHUNK_B='${{ steps.sizes.outputs.chunksize_b }}'
+          # Names like largefile.bin.part001, 002, ...
+          split -b "${CHUNK_B}" --numeric-suffixes=1 --suffix-length=3 \
+                largefile.bin largefile.bin.part
+          ls -lh largefile.bin.part* | nl -ba
+
+      - name: Create release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "filesize=${FILESIZE}, chunksize=${CHUNKSIZE}" || \
+          echo "Release may already exist; continuing."
+
+      - name: Upload parts (prefer repo helper; fallback to gh)
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          ./ubiquitous_bash.sh _gh_release_upload_parts-multiple "$TAG" ./largefile.bin.part* && exit 0
+          # fallback – retry a bit like the helper does
+          set -e
+          for i in $(seq 1 10); do
+            if gh release upload "$TAG" ./largefile.bin.part* --clobber; then
+              echo "Uploaded on try $i"
+              break
+            fi
+            echo "Retry $i..."
+            sleep 6
+          done
+
+      - name: Download parts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p parts
+          # releases can take a few seconds to index; retry
+          for i in $(seq 1 30); do
+            if gh release download "$TAG" --pattern "largefile.bin.part*" --dir parts --clobber; then
+              break
+            fi
+            echo "Waiting for assets to be available... ($i)"
+            sleep 5
+          done
+          ls -lh parts/
+
+      - name: Reassemble
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          # Numeric suffix is zero-padded, so glob ordering is correct
+          cat parts/largefile.bin.part* > largefile_downloaded
+          stat --printf="Reassembled %n (%s bytes)\n" largefile_downloaded
+
+      - name: Compare size and hash
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum largefile_downloaded | tee downloaded.sha256
+
+          size_o=$(stat -c%s largefile.bin)
+          size_d=$(stat -c%s largefile_downloaded)
+          sha_o=$(cut -d' ' -f1 original.sha256)
+          sha_d=$(cut -d' ' -f1 downloaded.sha256)
+
+          echo "Original size : $size_o"
+          echo "Downloaded size: $size_d"
+          echo "Original sha  : $sha_o"
+          echo "Downloaded sha : $sha_d"
+
+          test "$size_o" = "$size_d"
+          test "$sha_o"  = "$sha_d"
+          echo "PASS: sizes and sha256 match."
+
+      # Optional: keep small proof artifact (hashes & listing)
+      - name: Upload verification artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test_chunking-proof
+          path: |
+            original.sha256
+            downloaded.sha256
+            parts
+          if-no-files-found: warn
