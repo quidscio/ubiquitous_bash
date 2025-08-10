@@ -59,7 +59,8 @@ jobs:
           TAG: chunktest-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           gh release create "$TAG" -t "$TAG" || true
-          ./ubiquitous_bash.sh _gh_release_upload_parts-multiple "$TAG" largefile.bin.part*
+          ./ubiquitous_bash.sh _gh_release_upload_parts-multiple "$TAG" \
+            largefile.bin.part*
 
       - name: Download and verify
         env:
@@ -67,7 +68,8 @@ jobs:
           TAG: chunktest-${{ github.run_id }}-${{ github.run_attempt }}
           REPO: ${{ github.repository }}
         run: |
-          ./ubiquitous_bash.sh _wget_githubRelease_join "$REPO" "$TAG" "largefile.bin" largefile_downloaded.bin
+          ./ubiquitous_bash.sh _wget_githubRelease_join "$REPO" "$TAG" \
+            "largefile.bin" -O largefile_downloaded.bin
           sha256sum largefile_downloaded.bin > largefile_downloaded.sha256
           stat -c%s largefile.bin > size_original
           stat -c%s largefile_downloaded.bin > size_downloaded
